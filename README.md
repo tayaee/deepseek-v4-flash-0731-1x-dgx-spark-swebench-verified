@@ -9,7 +9,7 @@ curl -sSL https://raw.githubusercontent.com/entrpi/ds4-on-spark/main/install.sh 
 ./ds4-q3-16-ctx192k-banks3-graph512.sh                        # 192k ctx, banks=3, graph 512MB, reasoning=low
 ```
 
-설정 핵심: `DS4_CUDA_NO_HBM_CACHE=1`, `DS4_SESSION_LAZY_GRAPH=0`, `DS4_BATCH_FIT_HEADROOM_MB=2048`, `DS4_SESSION_GRAPH_HEADROOM_MB=512`, `ds4-serve -c 196608 --tokens 8192 --no-dspark --reasoning-effort low`.
+설정 핵심은 `DS4_CUDA_NO_HBM_CACHE=1`, `DS4_SESSION_LAZY_GRAPH=0`, `DS4_BATCH_FIT_HEADROOM_MB=2048`, `DS4_SESSION_GRAPH_HEADROOM_MB=512`. 실행 커맨드는 `ds4-serve -c 196608 --tokens 8192 --no-dspark --reasoning-effort low`.
 
 ## 2. SWE-bench Verified 실행 (WSL2)
 
