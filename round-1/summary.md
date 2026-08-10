@@ -42,6 +42,7 @@ The run is not strictly clean.
 
 ### Model & server
 
+|||
 |---|---|
 | Model | deepseek-v4-flash-0731 (2-bit) |
 | Model launcher | ds4-server 0.5.4 |
