@@ -33,6 +33,9 @@ The run is not strictly clean.
   - ~5 manual restarts to recover `illegal memory access` crashes.
   - ~18 auto restarts by a watchdog to recover `CUDA prefill error`.
   - Both crash modes were fixed in ds4-server 0.5.6 (released after this run).
+  - The zigzag pattern in the `Spark1 Uptime` panel below shows the crashes and restarts.
+    [<img src="deepseek-v4-flash-0731-metrics-during-swebench-verified.png" width="100%" alt="DeepSeek V4 Flash Metrics">](deepseek-v4-flash-0731-metrics-during-swebench-verified.png)
+
 - **30% of submissions failed**, mostly format errors and step-limit exhaustion. The `unknown` failures (42) were not classified.
 
 ## Setup
