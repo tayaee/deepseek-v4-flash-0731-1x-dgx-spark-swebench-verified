@@ -45,9 +45,9 @@ The run is not strictly clean.
 | | |
 |---|---|
 | Model | deepseek-v4-flash-0731 (2-bit) |
-| Server | ds4-server 0.5.4 |
-| GPU | 1× Nvidia DGX Spark |
-| Driver/runtime | WSL2 on Windows 10 PC |
+| Model launcher | ds4-server 0.5.4 |
+| Launcher running on | 1× Nvidia DGX Spark |
+| Bench running on | WSL2 on Windows 10 PC |
 
 ### ds4-server launch command
 
