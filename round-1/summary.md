@@ -2,7 +2,7 @@
 
 ## Summary
 
-First end-to-end SWE-bench Verified run of deepseek-v4-flash-0731 (a 2-bit quantized model) served by ds4-server 0.5.4 on a single Nvidia DGX Spark. 500 problems, 4 days of wall clock time.
+An end-to-end SWE-bench Verified run of deepseek-v4-flash-0731 (a 2-bit quantized model) served by ds4-server 0.5.4 on a single Nvidia DGX Spark. 500 problems, 4 days of wall clock time.
 
 - **Score:** 290 / 500 submitted = **58.1%**
 - **Period:** 2026-08-05 18:26 EST – 2026-08-09 19:33 EST (4 days 1 hour 7 mins)
