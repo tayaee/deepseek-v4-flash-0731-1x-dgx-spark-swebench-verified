@@ -1,0 +1,975 @@
+{
+  "info": {
+    "model_stats": {
+      "instance_cost": 0.0,
+      "api_calls": 9
+    },
+    "config": {
+      "agent": {
+        "system_template": "You are a helpful assistant that can interact with a computer shell to solve programming tasks.\n",
+        "instance_template": "<pr_description>\nConsider the following PR description:\n{{task}}\n</pr_description>\n\n<instructions>\n# Task Instructions\n\n## Overview\n\nYou're a software engineer interacting continuously with a computer by submitting commands.\nYou'll be helping implement necessary changes to meet requirements in the PR description.\nYour task is specifically to make changes to non-test files in the current directory in order to fix the issue described in the PR description in a way that is general and consistent with the codebase.\n<IMPORTANT>This is an interactive process where you will think and issue AT LEAST ONE command, see the result, then think and issue your next command(s).</important>\n\nFor each response:\n\n1. Include a THOUGHT section explaining your reasoning and what you're trying to accomplish\n2. Provide one or more bash tool calls to execute\n\n## Important Boundaries\n\n- MODIFY: Regular source code files in /testbed (this is the working directory for all your subsequent commands)\n- DO NOT MODIFY: Tests, configuration files (pyproject.toml, setup.cfg, etc.)\n\n## Recommended Workflow\n\n1. Analyze the codebase by finding and reading relevant files\n2. Create a script to reproduce the issue\n3. Edit the source code to resolve the issue\n4. Verify your fix works by running your script again\n5. Test edge cases to ensure your fix is robust\n\n## Command Execution Rules\n\nYou are operating in an environment where\n\n1. You issue at least one command\n2. The system executes the command(s) in a subshell\n3. You see the result(s)\n4. You write your next command(s)\n\nEach response should include:\n\n1. **Reasoning text** where you explain your analysis and plan\n2. At least one tool call with your command\n\n**CRITICAL REQUIREMENTS:**\n\n- Your response SHOULD include reasoning text explaining what you're doing\n- Your response MUST include AT LEAST ONE bash tool call. You can make MULTIPLE tool calls in a single response when the commands are independent (e.g., searching multiple files, reading different parts of the codebase).\n- Directory or environment variable changes are not persistent. Every action is executed in a new subshell.\n- However, you can prefix any action with `MY_ENV_VAR=MY_VALUE cd /path/to/working/dir && ...` or write/load environment variables from files\n\nExample of a CORRECT response:\n<example_response>\nI need to understand the Builder-related code. Let me find relevant files and check the project structure.\n\n[Makes multiple bash tool calls: {\"command\": \"ls -la\"}, {\"command\": \"find src -name '*.java' | grep -i builder\"}, {\"command\": \"cat README.md | head -50\"}]\n</example_response>\n\n## Environment Details\n\n- You have a full Linux shell environment\n- Always use non-interactive flags (-y, -f) for commands\n- Avoid interactive tools like vi, nano, or any that require user input\n- You can use bash commands or invoke any tool that is available in the environment\n- You can also create new tools or scripts to help you with the task\n- If a tool isn't available, you can also install it\n\n## Submission\n\nWhen you've completed your work, you MUST submit your changes as a git patch.\nFollow these steps IN ORDER, with SEPARATE commands:\n\nStep 1: Create the patch file\nRun `git diff -- path/to/file1 path/to/file2 > patch.txt` listing only the source files you modified.\nDo NOT commit your changes.\n\n<IMPORTANT>\nThe patch must only contain changes to the specific source files you modified to fix the issue.\nDo not submit file creations or changes to any of the following files:\n\n- test and reproduction files\n- helper scripts, tests, or tools that you created\n- installation, build, packaging, configuration, or setup scripts unless they are directly part of the issue you were fixing (you can assume that the environment is already set up for your client)\n- binary or compiled files\n</IMPORTANT>\n\nStep 2: Verify your patch\nInspect patch.txt to confirm it only contains your intended changes and headers show `--- a/` and `+++ b/` paths.\n\nStep 3: Submit (EXACT command required)\nYou MUST use this EXACT command to submit:\n\n```bash\necho COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT && cat patch.txt\n```\n\nIf the command fails (nonzero exit status), it will not submit.\n\n<CRITICAL>\n- Creating/viewing the patch and submitting it MUST be separate commands (not combined with &&).\n- If you modify patch.txt after verifying, you SHOULD verify again before submitting.\n- You CANNOT continue working (reading, editing, testing) in any way on this task after submitting.\n</CRITICAL>\n</instructions>\n",
+        "step_limit": 250,
+        "cost_limit": 3.0,
+        "wall_time_limit_seconds": 0,
+        "max_consecutive_format_errors": 3,
+        "output_path": null
+      },
+      "agent_type": "minisweagent.run.benchmarks.utils.common.ProgressTrackingAgent",
+      "model": {
+        "model_name": "openai/deepseek-v4-flash",
+        "model_kwargs": {
+          "drop_params": true,
+          "parallel_tool_calls": true
+        },
+        "litellm_model_registry": null,
+        "set_cache_control": null,
+        "cost_tracking": "ignore_errors",
+        "format_error_template": "{% if finish_reason is defined and (finish_reason == \"length\" or (finish_reason == \"tool_calls\" and not has_tool_calls)) -%}\nYour previous response reached the output token limit (finish_reason={{ finish_reason }}) before you produced a tool call, so it was cut off. Respond more concisely and finish with exactly one bash tool call. If you need to think more, do so briefly.\n{%- else -%}\nTool call error:\n\n<error>\n{{error}}\n</error>\n\nHere is general guidance on how to submit correct toolcalls:\n\nEvery response needs to use the 'bash' tool at least once to execute commands.\n\nCall the bash tool with your command as the argument:\n- Tool: bash\n- Arguments: {\"command\": \"your_command_here\"}\n\nIf you have completed your assignment, please consult the first message about how to\nsubmit your solution (you will not be able to continue working on this task after that).\n{%- endif %}\n",
+        "observation_template": "{% if output.exception_info -%}\n<exception>{{output.exception_info}}</exception>\n{% endif -%}\n<returncode>{{output.returncode}}</returncode>\n{% if output.output | length < 10000 -%}\n<output>\n{{ output.output -}}\n</output>\n{%- else -%}\n<warning>\nThe output of your last command was too long.\nPlease try a different command that produces less output.\nIf you're looking at a file you can try use head, tail or sed to view a smaller number of lines selectively.\nIf you're using grep or find and it produced too much output, you can use a more selective search pattern.\nIf you really need to see something from the full command's output, you can redirect output to a file and then search in that file.\n</warning>\n{%- set elided_chars = output.output | length - 10000 -%}\n<output_head>\n{{ output.output[:5000] }}\n</output_head>\n<elided_chars>\n{{ elided_chars }} characters elided\n</elided_chars>\n<output_tail>\n{{ output.output[-5000:] }}\n</output_tail>\n{%- endif -%}\n",
+        "multimodal_regex": ""
+      },
+      "model_type": "minisweagent.models.litellm_model.LitellmModel",
+      "environment": {
+        "image": "docker.io/swebench/sweb.eval.x86_64.django_1776_django-16667:latest",
+        "cwd": "/testbed",
+        "env": {
+          "PAGER": "cat",
+          "MANPAGER": "cat",
+          "LESS": "-R",
+          "PIP_PROGRESS_BAR": "off",
+          "TQDM_DISABLE": "1",
+          "BASH_ENV": "/root/.bashrc"
+        },
+        "forward_env": [],
+        "timeout": 60,
+        "executable": "docker",
+        "run_args": [
+          "--rm"
+        ],
+        "container_timeout": "2h",
+        "pull_timeout": 600,
+        "interpreter": [
+          "bash",
+          "-c"
+        ]
+      },
+      "environment_type": "minisweagent.environments.docker.DockerEnvironment"
+    },
+    "mini_version": "2.4.5",
+    "exit_status": "Submitted",
+    "submission": "diff --git a/django/forms/widgets.py b/django/forms/widgets.py\nindex 842b73e95c..f4bc74b7cd 100644\n--- a/django/forms/widgets.py\n+++ b/django/forms/widgets.py\n@@ -1157,7 +1157,7 @@ class SelectDateWidget(Widget):\n             input_format = formats.sanitize_strftime_format(input_format)\n             try:\n                 date_value = datetime.date(int(y), int(m), int(d))\n-            except ValueError:\n+            except (ValueError, OverflowError):\n                 # Return pseudo-ISO dates with zeros for any unselected values,\n                 # e.g. '2017-0-23'.\n                 return \"%s-%s-%s\" % (y or 0, m or 0, d or 0)\n"
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful assistant that can interact with a computer shell to solve programming tasks."
+    },
+    {
+      "role": "user",
+      "content": "<pr_description>\nConsider the following PR description:\nSelectDateWidget can crash with OverflowError.\nDescription\n\t\nGiven a relatively common view like this:\nfrom django import forms\nfrom django.forms import SelectDateWidget\nfrom django.http import HttpResponse\nclass ReproForm(forms.Form):\n\t my_date = forms.DateField(widget=SelectDateWidget())\ndef repro_view(request):\n\t form = ReproForm(request.GET) # for ease of reproducibility\n\t if form.is_valid():\n\t\t return HttpResponse(\"ok\")\n\t else:\n\t\t return HttpResponse(\"not ok\")\n# urls.py\nurlpatterns = [path('repro/', views.repro_view, name='repro')]\nA user can trigger a server crash, reproducible by running locally and visiting \u200bhttp://127.0.0.1:8000/repro/?my_date_day=1&my_date_month=1&my_date_year=1234567821345678, which results in\n[...] - ERROR - django.request: Internal Server Error: /repro/\nTraceback (most recent call last):\n[...]\n File \"[...]/site-packages/django/forms/widgets.py\", line 1160, in value_from_datadict\n\tdate_value = datetime.date(int(y), int(m), int(d))\nOverflowError: signed integer is greater than maximum\nThis can be triggered similarly for a post request.\nThe issue happens as part of the validation logic run in form.is_valid, specifically, when calling the SelectDateWidget.value_from_datadict, where the user-controlled value is converted into a date without guarding against a possible OverflowError.\nSpecifically, y, m and d are user controlled, and the code does this:\n date_value = datetime.date(int(y), int(m), int(d)) \nWhen large integers (larger than sys.maxsize) are supplied to date's constructor it will throw an OverflowError:\n>>> import datetime, sys\n>>> datetime.date(sys.maxsize+1, 3, 4)\nTraceback (most recent call last):\n File \"<stdin>\", line 1, in <module>\nOverflowError: Python int too large to convert to C long\n\n</pr_description>\n\n<instructions>\n# Task Instructions\n\n## Overview\n\nYou're a software engineer interacting continuously with a computer by submitting commands.\nYou'll be helping implement necessary changes to meet requirements in the PR description.\nYour task is specifically to make changes to non-test files in the current directory in order to fix the issue described in the PR description in a way that is general and consistent with the codebase.\n<IMPORTANT>This is an interactive process where you will think and issue AT LEAST ONE command, see the result, then think and issue your next command(s).</important>\n\nFor each response:\n\n1. Include a THOUGHT section explaining your reasoning and what you're trying to accomplish\n2. Provide one or more bash tool calls to execute\n\n## Important Boundaries\n\n- MODIFY: Regular source code files in /testbed (this is the working directory for all your subsequent commands)\n- DO NOT MODIFY: Tests, configuration files (pyproject.toml, setup.cfg, etc.)\n\n## Recommended Workflow\n\n1. Analyze the codebase by finding and reading relevant files\n2. Create a script to reproduce the issue\n3. Edit the source code to resolve the issue\n4. Verify your fix works by running your script again\n5. Test edge cases to ensure your fix is robust\n\n## Command Execution Rules\n\nYou are operating in an environment where\n\n1. You issue at least one command\n2. The system executes the command(s) in a subshell\n3. You see the result(s)\n4. You write your next command(s)\n\nEach response should include:\n\n1. **Reasoning text** where you explain your analysis and plan\n2. At least one tool call with your command\n\n**CRITICAL REQUIREMENTS:**\n\n- Your response SHOULD include reasoning text explaining what you're doing\n- Your response MUST include AT LEAST ONE bash tool call. You can make MULTIPLE tool calls in a single response when the commands are independent (e.g., searching multiple files, reading different parts of the codebase).\n- Directory or environment variable changes are not persistent. Every action is executed in a new subshell.\n- However, you can prefix any action with `MY_ENV_VAR=MY_VALUE cd /path/to/working/dir && ...` or write/load environment variables from files\n\nExample of a CORRECT response:\n<example_response>\nI need to understand the Builder-related code. Let me find relevant files and check the project structure.\n\n[Makes multiple bash tool calls: {\"command\": \"ls -la\"}, {\"command\": \"find src -name '*.java' | grep -i builder\"}, {\"command\": \"cat README.md | head -50\"}]\n</example_response>\n\n## Environment Details\n\n- You have a full Linux shell environment\n- Always use non-interactive flags (-y, -f) for commands\n- Avoid interactive tools like vi, nano, or any that require user input\n- You can use bash commands or invoke any tool that is available in the environment\n- You can also create new tools or scripts to help you with the task\n- If a tool isn't available, you can also install it\n\n## Submission\n\nWhen you've completed your work, you MUST submit your changes as a git patch.\nFollow these steps IN ORDER, with SEPARATE commands:\n\nStep 1: Create the patch file\nRun `git diff -- path/to/file1 path/to/file2 > patch.txt` listing only the source files you modified.\nDo NOT commit your changes.\n\n<IMPORTANT>\nThe patch must only contain changes to the specific source files you modified to fix the issue.\nDo not submit file creations or changes to any of the following files:\n\n- test and reproduction files\n- helper scripts, tests, or tools that you created\n- installation, build, packaging, configuration, or setup scripts unless they are directly part of the issue you were fixing (you can assume that the environment is already set up for your client)\n- binary or compiled files\n</IMPORTANT>\n\nStep 2: Verify your patch\nInspect patch.txt to confirm it only contains your intended changes and headers show `--- a/` and `+++ b/` paths.\n\nStep 3: Submit (EXACT command required)\nYou MUST use this EXACT command to submit:\n\n```bash\necho COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT && cat patch.txt\n```\n\nIf the command fails (nonzero exit status), it will not submit.\n\n<CRITICAL>\n- Creating/viewing the patch and submitting it MUST be separate commands (not combined with &&).\n- If you modify patch.txt after verifying, you SHOULD verify again before submitting.\n- You CANNOT continue working (reading, editing, testing) in any way on this task after submitting.\n</CRITICAL>\n</instructions>"
+    },
+    {
+      "content": "Let me start by exploring the repository structure and locating the relevant file.",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && pwd && ls -la\"}",
+            "name": "bash"
+          },
+          "id": "call_2afa095f7e2ccd36d4fd2f69b46631d7",
+          "type": "function"
+        },
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && find . -path '*django/forms/widgets.py' -not -path '*/node_modules/*' 2>/dev/null\"}",
+            "name": "bash"
+          },
+          "id": "call_14c60f94c71dac69760e12289b184720",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "We need to fix Django's SelectDateWidget to handle OverflowError. Let's explore the codebase.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && pwd && ls -la",
+            "tool_call_id": "call_2afa095f7e2ccd36d4fd2f69b46631d7"
+          },
+          {
+            "command": "cd /testbed && find . -path '*django/forms/widgets.py' -not -path '*/node_modules/*' 2>/dev/null",
+            "tool_call_id": "call_14c60f94c71dac69760e12289b184720"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-1",
+          "created": 1786135052,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "Let me start by exploring the repository structure and locating the relevant file.",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && pwd && ls -la\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_2afa095f7e2ccd36d4fd2f69b46631d7",
+                    "type": "function"
+                  },
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && find . -path '*django/forms/widgets.py' -not -path '*/node_modules/*' 2>/dev/null\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_14c60f94c71dac69760e12289b184720",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "We need to fix Django's SelectDateWidget to handle OverflowError. Let's explore the codebase.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 148,
+            "prompt_tokens": 1797,
+            "total_tokens": 1945,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 1797,
+              "cached_tokens": 0
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 4418.4,
+            "prefill_tokens": 1797,
+            "prefill_cached_tokens": 0,
+            "prefill_tok_s": 645.2,
+            "decode_tok_s": 16.1,
+            "tok_per_step": 1.01
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786135053.1798427
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n/testbed\ntotal 192\ndrwxrwxrwx   1 root root  4096 Sep 10  2025 .\ndrwxr-xr-x   1 root root  4096 Aug  7 20:37 ..\n-rw-r--r--   1 root root   806 Sep 10  2025 .editorconfig\n-rw-r--r--   1 root root   148 Sep 10  2025 .eslintignore\n-rw-r--r--   1 root root  1407 Sep 10  2025 .eslintrc\ndrwxrwxrwx   8 root root  4096 Sep 10  2025 .git\n-rw-r--r--   1 root root   369 Sep 10  2025 .git-blame-ignore-revs\n-rw-r--r--   1 root root   297 Sep 10  2025 .gitattributes\ndrwxrwxrwx   3 root root  4096 Sep 10  2025 .github\n-rw-r--r--   1 root root   353 Sep 10  2025 .gitignore\n-rw-r--r--   1 root root   551 Sep 10  2025 .pre-commit-config.yaml\n-rw-r--r--   1 root root   385 Sep 10  2025 .readthedocs.yml\ndrwxrwxrwx   2 root root  4096 Sep 10  2025 .tx\n-rw-r--r--   1 root root 41332 Sep 10  2025 AUTHORS\n-rw-r--r--   1 root root  1115 Sep 10  2025 CONTRIBUTING.rst\ndrwxr-xr-x   2 root root  4096 Sep 10  2025 Django.egg-info\n-rw-r--r--   1 root root   369 Sep 10  2025 Gruntfile.js\n-rw-r--r--   1 root root   237 Sep 10  2025 INSTALL\n-rw-r--r--   1 root root  1552 Sep 10  2025 LICENSE\n-rw-r--r--   1 root root 14383 Sep 10  2025 LICENSE.python\n-rw-r--r--   1 root root   292 Sep 10  2025 MANIFEST.in\n-rw-r--r--   1 root root  2122 Sep 10  2025 README.rst\ndrwxrwxrwx  18 root root  4096 Sep 10  2025 django\ndrwxrwxrwx  13 root root  4096 Sep 10  2025 docs\ndrwxrwxrwx   2 root root  4096 Sep 10  2025 extras\ndrwxrwxrwx   4 root root  4096 Sep 10  2025 js_tests\n-rw-r--r--   1 root root   356 Sep 10  2025 package.json\n-rw-r--r--   1 root root   199 Sep 10  2025 pyproject.toml\ndrwxrwxrwx   2 root root  4096 Sep 10  2025 scripts\n-rw-r--r--   1 root root  2191 Sep 10  2025 setup.cfg\n-rw-r--r--   1 root root  1633 Sep 10  2025 setup.py\ndrwxrwxrwx 214 root root 12288 Sep 10  2025 tests\n-rw-r--r--   1 root root  1875 Sep 10  2025 tox.ini\n</output>",
+      "extra": {
+        "raw_output": "/testbed\ntotal 192\ndrwxrwxrwx   1 root root  4096 Sep 10  2025 .\ndrwxr-xr-x   1 root root  4096 Aug  7 20:37 ..\n-rw-r--r--   1 root root   806 Sep 10  2025 .editorconfig\n-rw-r--r--   1 root root   148 Sep 10  2025 .eslintignore\n-rw-r--r--   1 root root  1407 Sep 10  2025 .eslintrc\ndrwxrwxrwx   8 root root  4096 Sep 10  2025 .git\n-rw-r--r--   1 root root   369 Sep 10  2025 .git-blame-ignore-revs\n-rw-r--r--   1 root root   297 Sep 10  2025 .gitattributes\ndrwxrwxrwx   3 root root  4096 Sep 10  2025 .github\n-rw-r--r--   1 root root   353 Sep 10  2025 .gitignore\n-rw-r--r--   1 root root   551 Sep 10  2025 .pre-commit-config.yaml\n-rw-r--r--   1 root root   385 Sep 10  2025 .readthedocs.yml\ndrwxrwxrwx   2 root root  4096 Sep 10  2025 .tx\n-rw-r--r--   1 root root 41332 Sep 10  2025 AUTHORS\n-rw-r--r--   1 root root  1115 Sep 10  2025 CONTRIBUTING.rst\ndrwxr-xr-x   2 root root  4096 Sep 10  2025 Django.egg-info\n-rw-r--r--   1 root root   369 Sep 10  2025 Gruntfile.js\n-rw-r--r--   1 root root   237 Sep 10  2025 INSTALL\n-rw-r--r--   1 root root  1552 Sep 10  2025 LICENSE\n-rw-r--r--   1 root root 14383 Sep 10  2025 LICENSE.python\n-rw-r--r--   1 root root   292 Sep 10  2025 MANIFEST.in\n-rw-r--r--   1 root root  2122 Sep 10  2025 README.rst\ndrwxrwxrwx  18 root root  4096 Sep 10  2025 django\ndrwxrwxrwx  13 root root  4096 Sep 10  2025 docs\ndrwxrwxrwx   2 root root  4096 Sep 10  2025 extras\ndrwxrwxrwx   4 root root  4096 Sep 10  2025 js_tests\n-rw-r--r--   1 root root   356 Sep 10  2025 package.json\n-rw-r--r--   1 root root   199 Sep 10  2025 pyproject.toml\ndrwxrwxrwx   2 root root  4096 Sep 10  2025 scripts\n-rw-r--r--   1 root root  2191 Sep 10  2025 setup.cfg\n-rw-r--r--   1 root root  1633 Sep 10  2025 setup.py\ndrwxrwxrwx 214 root root 12288 Sep 10  2025 tests\n-rw-r--r--   1 root root  1875 Sep 10  2025 tox.ini\n",
+        "returncode": 0,
+        "timestamp": 1786135054.8652942,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_2afa095f7e2ccd36d4fd2f69b46631d7",
+      "role": "tool"
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n./django/forms/widgets.py\n</output>",
+      "extra": {
+        "raw_output": "./django/forms/widgets.py\n",
+        "returncode": 0,
+        "timestamp": 1786135054.8727844,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_14c60f94c71dac69760e12289b184720",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && grep -n \\\"SelectDateWidget\\\\|value_from_datadict\\\\|class Date\\\" django/forms/widgets.py | head -40\"}",
+            "name": "bash"
+          },
+          "id": "call_06b72e56fe9e19fbda188c5eea247b13",
+          "type": "function"
+        },
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && sed -n '1120,1200p' django/forms/widgets.py\"}",
+            "name": "bash"
+          },
+          "id": "call_b8741b79705cb2cd5d7965489caa59dc",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "Let me look at the relevant code in widgets.py around SelectDateWidget.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && grep -n \"SelectDateWidget\\|value_from_datadict\\|class Date\" django/forms/widgets.py | head -40",
+            "tool_call_id": "call_06b72e56fe9e19fbda188c5eea247b13"
+          },
+          {
+            "command": "cd /testbed && sed -n '1120,1200p' django/forms/widgets.py",
+            "tool_call_id": "call_b8741b79705cb2cd5d7965489caa59dc"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-3",
+          "created": 1786135067,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && grep -n \\\"SelectDateWidget\\\\|value_from_datadict\\\\|class Date\\\" django/forms/widgets.py | head -40\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_06b72e56fe9e19fbda188c5eea247b13",
+                    "type": "function"
+                  },
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && sed -n '1120,1200p' django/forms/widgets.py\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_b8741b79705cb2cd5d7965489caa59dc",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "Let me look at the relevant code in widgets.py around SelectDateWidget.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 139,
+            "prompt_tokens": 2752,
+            "total_tokens": 2891,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 808,
+              "cached_tokens": 1944
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 1337.4,
+            "prefill_tokens": 808,
+            "prefill_cached_tokens": 1944,
+            "prefill_tok_s": 617.7,
+            "decode_tok_s": 11.3,
+            "tok_per_step": 1.01
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786135068.8205678
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n50:    \"SelectDateWidget\",\n285:    def value_from_datadict(self, data, files, name):\n397:    def value_from_datadict(self, data, files, name):\n417:    def value_from_datadict(self, data, files, name):\n480:    def value_from_datadict(self, data, files, name):\n481:        upload = super().value_from_datadict(data, files, name)\n482:        if not self.is_required and CheckboxInput().value_from_datadict(\n512:class DateTimeBaseInput(TextInput):\n526:class DateInput(DateTimeBaseInput):\n531:class DateTimeInput(DateTimeBaseInput):\n567:    def value_from_datadict(self, data, files, name):\n700:    def value_from_datadict(self, data, files, name):\n783:    def value_from_datadict(self, data, files, name):\n801:    def value_from_datadict(self, data, files, name):\n913:    def value_from_datadict(self, data, files, name):\n915:            widget.value_from_datadict(data, files, name + widget_name)\n1010:class SelectDateWidget(Widget):\n1015:    element and hence implements value_from_datadict.\n1149:    def value_from_datadict(self, data, files, name):\n</output>",
+      "extra": {
+        "raw_output": "50:    \"SelectDateWidget\",\n285:    def value_from_datadict(self, data, files, name):\n397:    def value_from_datadict(self, data, files, name):\n417:    def value_from_datadict(self, data, files, name):\n480:    def value_from_datadict(self, data, files, name):\n481:        upload = super().value_from_datadict(data, files, name)\n482:        if not self.is_required and CheckboxInput().value_from_datadict(\n512:class DateTimeBaseInput(TextInput):\n526:class DateInput(DateTimeBaseInput):\n531:class DateTimeInput(DateTimeBaseInput):\n567:    def value_from_datadict(self, data, files, name):\n700:    def value_from_datadict(self, data, files, name):\n783:    def value_from_datadict(self, data, files, name):\n801:    def value_from_datadict(self, data, files, name):\n913:    def value_from_datadict(self, data, files, name):\n915:            widget.value_from_datadict(data, files, name + widget_name)\n1010:class SelectDateWidget(Widget):\n1015:    element and hence implements value_from_datadict.\n1149:    def value_from_datadict(self, data, files, name):\n",
+        "returncode": 0,
+        "timestamp": 1786135070.180161,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_06b72e56fe9e19fbda188c5eea247b13",
+      "role": "tool"
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n                try:\n                    d = datetime.datetime.strptime(value, input_format)\n                except ValueError:\n                    pass\n                else:\n                    year, month, day = d.year, d.month, d.day\n        return {\"year\": year, \"month\": month, \"day\": day}\n\n    @staticmethod\n    def _parse_date_fmt():\n        fmt = get_format(\"DATE_FORMAT\")\n        escaped = False\n        for char in fmt:\n            if escaped:\n                escaped = False\n            elif char == \"\\\\\":\n                escaped = True\n            elif char in \"Yy\":\n                yield \"year\"\n            elif char in \"bEFMmNn\":\n                yield \"month\"\n            elif char in \"dj\":\n                yield \"day\"\n\n    def id_for_label(self, id_):\n        for first_select in self._parse_date_fmt():\n            return \"%s_%s\" % (id_, first_select)\n        return \"%s_month\" % id_\n\n    def value_from_datadict(self, data, files, name):\n        y = data.get(self.year_field % name)\n        m = data.get(self.month_field % name)\n        d = data.get(self.day_field % name)\n        if y == m == d == \"\":\n            return None\n        if y is not None and m is not None and d is not None:\n            input_format = get_format(\"DATE_INPUT_FORMATS\")[0]\n            input_format = formats.sanitize_strftime_format(input_format)\n            try:\n                date_value = datetime.date(int(y), int(m), int(d))\n            except ValueError:\n                # Return pseudo-ISO dates with zeros for any unselected values,\n                # e.g. '2017-0-23'.\n                return \"%s-%s-%s\" % (y or 0, m or 0, d or 0)\n            return date_value.strftime(input_format)\n        return data.get(name)\n\n    def value_omitted_from_data(self, data, files, name):\n        return not any(\n            (\"{}_{}\".format(name, interval) in data)\n            for interval in (\"year\", \"month\", \"day\")\n        )\n</output>",
+      "extra": {
+        "raw_output": "                try:\n                    d = datetime.datetime.strptime(value, input_format)\n                except ValueError:\n                    pass\n                else:\n                    year, month, day = d.year, d.month, d.day\n        return {\"year\": year, \"month\": month, \"day\": day}\n\n    @staticmethod\n    def _parse_date_fmt():\n        fmt = get_format(\"DATE_FORMAT\")\n        escaped = False\n        for char in fmt:\n            if escaped:\n                escaped = False\n            elif char == \"\\\\\":\n                escaped = True\n            elif char in \"Yy\":\n                yield \"year\"\n            elif char in \"bEFMmNn\":\n                yield \"month\"\n            elif char in \"dj\":\n                yield \"day\"\n\n    def id_for_label(self, id_):\n        for first_select in self._parse_date_fmt():\n            return \"%s_%s\" % (id_, first_select)\n        return \"%s_month\" % id_\n\n    def value_from_datadict(self, data, files, name):\n        y = data.get(self.year_field % name)\n        m = data.get(self.month_field % name)\n        d = data.get(self.day_field % name)\n        if y == m == d == \"\":\n            return None\n        if y is not None and m is not None and d is not None:\n            input_format = get_format(\"DATE_INPUT_FORMATS\")[0]\n            input_format = formats.sanitize_strftime_format(input_format)\n            try:\n                date_value = datetime.date(int(y), int(m), int(d))\n            except ValueError:\n                # Return pseudo-ISO dates with zeros for any unselected values,\n                # e.g. '2017-0-23'.\n                return \"%s-%s-%s\" % (y or 0, m or 0, d or 0)\n            return date_value.strftime(input_format)\n        return data.get(name)\n\n    def value_omitted_from_data(self, data, files, name):\n        return not any(\n            (\"{}_{}\".format(name, interval) in data)\n            for interval in (\"year\", \"month\", \"day\")\n        )\n",
+        "returncode": 0,
+        "timestamp": 1786135070.1891065,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_b8741b79705cb2cd5d7965489caa59dc",
+      "role": "tool"
+    },
+    {
+      "content": "The fix is to catch `OverflowError` alongside `ValueError`. Let me apply the change.",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && python - <<'EOF'\\nimport re\\npath = 'django/forms/widgets.py'\\nwith open(path) as f:\\n    content = f.read()\\nold = \\\"\\\"\\\"            try:\\n                date_value = datetime.date(int(y), int(m), int(d))\\n            except ValueError:\\n                # Return pseudo-ISO dates with zeros for any unselected values,\\n                # e.g. '2017-0-23'.\\n                return \\\"%s-%s-%s\\\" % (y or 0, m or 0, d or 0)\\\"\\\"\\\"\\nnew = \\\"\\\"\\\"            try:\\n                date_value = datetime.date(int(y), int(m), int(d))\\n            except (ValueError, OverflowError):\\n                # Return pseudo-ISO dates with zeros for any unselected values,\\n                # e.g. '2017-0-23'.\\n                return \\\"%s-%s-%s\\\" % (y or 0, m or 0, d or 0)\\\"\\\"\\\"\\nassert old in content\\ncontent = content.replace(old, new, 1)\\nwith open(path, 'w') as f:\\n    f.write(content)\\nprint(\\\"patched\\\")\\nEOF\"}",
+            "name": "bash"
+          },
+          "id": "call_a4bbe305d8d8966dd13c05bd186c29f3",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "The issue: `datetime.date(int(y), int(m), int(d))` can raise OverflowError. We should catch OverflowError as well as ValueError and return pseudo-ISO dates.\n\nLet me make the fix.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && python - <<'EOF'\nimport re\npath = 'django/forms/widgets.py'\nwith open(path) as f:\n    content = f.read()\nold = \"\"\"            try:\n                date_value = datetime.date(int(y), int(m), int(d))\n            except ValueError:\n                # Return pseudo-ISO dates with zeros for any unselected values,\n                # e.g. '2017-0-23'.\n                return \"%s-%s-%s\" % (y or 0, m or 0, d or 0)\"\"\"\nnew = \"\"\"            try:\n                date_value = datetime.date(int(y), int(m), int(d))\n            except (ValueError, OverflowError):\n                # Return pseudo-ISO dates with zeros for any unselected values,\n                # e.g. '2017-0-23'.\n                return \"%s-%s-%s\" % (y or 0, m or 0, d or 0)\"\"\"\nassert old in content\ncontent = content.replace(old, new, 1)\nwith open(path, 'w') as f:\n    f.write(content)\nprint(\"patched\")\nEOF",
+            "tool_call_id": "call_a4bbe305d8d8966dd13c05bd186c29f3"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-5",
+          "created": 1786135095,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "The fix is to catch `OverflowError` alongside `ValueError`. Let me apply the change.",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && python - <<'EOF'\\nimport re\\npath = 'django/forms/widgets.py'\\nwith open(path) as f:\\n    content = f.read()\\nold = \\\"\\\"\\\"            try:\\n                date_value = datetime.date(int(y), int(m), int(d))\\n            except ValueError:\\n                # Return pseudo-ISO dates with zeros for any unselected values,\\n                # e.g. '2017-0-23'.\\n                return \\\"%s-%s-%s\\\" % (y or 0, m or 0, d or 0)\\\"\\\"\\\"\\nnew = \\\"\\\"\\\"            try:\\n                date_value = datetime.date(int(y), int(m), int(d))\\n            except (ValueError, OverflowError):\\n                # Return pseudo-ISO dates with zeros for any unselected values,\\n                # e.g. '2017-0-23'.\\n                return \\\"%s-%s-%s\\\" % (y or 0, m or 0, d or 0)\\\"\\\"\\\"\\nassert old in content\\ncontent = content.replace(old, new, 1)\\nwith open(path, 'w') as f:\\n    f.write(content)\\nprint(\\\"patched\\\")\\nEOF\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_a4bbe305d8d8966dd13c05bd186c29f3",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "The issue: `datetime.date(int(y), int(m), int(d))` can raise OverflowError. We should catch OverflowError as well as ValueError and return pseudo-ISO dates.\n\nLet me make the fix.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 345,
+            "prompt_tokens": 3677,
+            "total_tokens": 4022,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 787,
+              "cached_tokens": 2890
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 996.3,
+            "prefill_tokens": 787,
+            "prefill_cached_tokens": 2890,
+            "prefill_tok_s": 794.4,
+            "decode_tok_s": 13.8,
+            "tok_per_step": 1.0
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786135096.2452278
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\npatched\n</output>",
+      "extra": {
+        "raw_output": "patched\n",
+        "returncode": 0,
+        "timestamp": 1786135097.4622078,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_a4bbe305d8d8966dd13c05bd186c29f3",
+      "role": "tool"
+    },
+    {
+      "content": "Now let me verify the fix with a reproduction script.",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && python - <<'EOF'\\nimport sys\\nfrom django.forms import SelectDateWidget\\n\\nwidget = SelectDateWidget()\\ndata = {'my_date_day': '1', 'my_date_month': '1', 'my_date_year': '1234567821345678'}\\nresult = widget.value_from_datadict(data, None, 'my_date')\\nprint(\\\"result:\\\", result)\\n\\n# Also test normal value and empty\\ndata2 = {'my_date_day': '1', 'my_date_month': '1', 'my_date_year': '2020'}\\nprint(\\\"normal:\\\", widget.value_from_datadict(data2, None, 'my_date'))\\ndata3 = {'my_date_day': '', 'my_date_month': '', 'my_date_year': ''}\\nprint(\\\"empty:\\\", widget.value_from_datadict(data3, None, 'my_date'))\\nEOF\"}",
+            "name": "bash"
+          },
+          "id": "call_cff663386b8b57204b887be5d967130c",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "Now let me verify the fix with a reproduction script.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && python - <<'EOF'\nimport sys\nfrom django.forms import SelectDateWidget\n\nwidget = SelectDateWidget()\ndata = {'my_date_day': '1', 'my_date_month': '1', 'my_date_year': '1234567821345678'}\nresult = widget.value_from_datadict(data, None, 'my_date')\nprint(\"result:\", result)\n\n# Also test normal value and empty\ndata2 = {'my_date_day': '1', 'my_date_month': '1', 'my_date_year': '2020'}\nprint(\"normal:\", widget.value_from_datadict(data2, None, 'my_date'))\ndata3 = {'my_date_day': '', 'my_date_month': '', 'my_date_year': ''}\nprint(\"empty:\", widget.value_from_datadict(data3, None, 'my_date'))\nEOF",
+            "tool_call_id": "call_cff663386b8b57204b887be5d967130c"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-8",
+          "created": 1786135119,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "Now let me verify the fix with a reproduction script.",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && python - <<'EOF'\\nimport sys\\nfrom django.forms import SelectDateWidget\\n\\nwidget = SelectDateWidget()\\ndata = {'my_date_day': '1', 'my_date_month': '1', 'my_date_year': '1234567821345678'}\\nresult = widget.value_from_datadict(data, None, 'my_date')\\nprint(\\\"result:\\\", result)\\n\\n# Also test normal value and empty\\ndata2 = {'my_date_day': '1', 'my_date_month': '1', 'my_date_year': '2020'}\\nprint(\\\"normal:\\\", widget.value_from_datadict(data2, None, 'my_date'))\\ndata3 = {'my_date_day': '', 'my_date_month': '', 'my_date_year': ''}\\nprint(\\\"empty:\\\", widget.value_from_datadict(data3, None, 'my_date'))\\nEOF\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_cff663386b8b57204b887be5d967130c",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "Now let me verify the fix with a reproduction script.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 242,
+            "prompt_tokens": 4050,
+            "total_tokens": 4292,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 29,
+              "cached_tokens": 4021
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 362.8,
+            "prefill_tokens": 29,
+            "prefill_cached_tokens": 4021,
+            "prefill_tok_s": 93.0,
+            "decode_tok_s": 10.9,
+            "tok_per_step": 1.0
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786135119.8983712
+      }
+    },
+    {
+      "content": "<returncode>1</returncode>\n<output>\nTraceback (most recent call last):\n  File \"<stdin>\", line 6, in <module>\n  File \"/testbed/django/forms/widgets.py\", line 1156, in value_from_datadict\n    input_format = get_format(\"DATE_INPUT_FORMATS\")[0]\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/testbed/django/utils/formats.py\", line 112, in get_format\n    lang = get_language()\n           ^^^^^^^^^^^^^^\n  File \"/testbed/django/utils/translation/__init__.py\", line 210, in get_language\n    return _trans.get_language()\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/testbed/django/utils/translation/__init__.py\", line 65, in __getattr__\n    if settings.USE_I18N:\n       ^^^^^^^^^^^^^^^^^\n  File \"/testbed/django/conf/__init__.py\", line 84, in __getattr__\n    self._setup(name)\n  File \"/testbed/django/conf/__init__.py\", line 64, in _setup\n    raise ImproperlyConfigured(\ndjango.core.exceptions.ImproperlyConfigured: Requested setting USE_I18N, but settings are not configured. You must either define the environment variable DJANGO_SETTINGS_MODULE or call settings.configure() before accessing settings.\n</output>",
+      "extra": {
+        "raw_output": "Traceback (most recent call last):\n  File \"<stdin>\", line 6, in <module>\n  File \"/testbed/django/forms/widgets.py\", line 1156, in value_from_datadict\n    input_format = get_format(\"DATE_INPUT_FORMATS\")[0]\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/testbed/django/utils/formats.py\", line 112, in get_format\n    lang = get_language()\n           ^^^^^^^^^^^^^^\n  File \"/testbed/django/utils/translation/__init__.py\", line 210, in get_language\n    return _trans.get_language()\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/testbed/django/utils/translation/__init__.py\", line 65, in __getattr__\n    if settings.USE_I18N:\n       ^^^^^^^^^^^^^^^^^\n  File \"/testbed/django/conf/__init__.py\", line 84, in __getattr__\n    self._setup(name)\n  File \"/testbed/django/conf/__init__.py\", line 64, in _setup\n    raise ImproperlyConfigured(\ndjango.core.exceptions.ImproperlyConfigured: Requested setting USE_I18N, but settings are not configured. You must either define the environment variable DJANGO_SETTINGS_MODULE or call settings.configure() before accessing settings.\n",
+        "returncode": 1,
+        "timestamp": 1786135122.2529337,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_cff663386b8b57204b887be5d967130c",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && python - <<'EOF'\\nimport sys\\nfrom django.conf import settings\\nsettings.configure(USE_I18N=True)\\nfrom django.forms import SelectDateWidget\\n\\nwidget = SelectDateWidget()\\ndata = {'my_date_day': '1', 'my_date_month': '1', 'my_date_year': '1234567821345678'}\\nresult = widget.value_from_datadict(data, None, 'my_date')\\nprint(\\\"large result:\\\", result)\\n\\ndata2 = {'my_date_day': '1', 'my_date_month': '1', 'my_date_year': '2020'}\\nprint(\\\"normal:\\\", widget.value_from_datadict(data2, None, 'my_date'))\\ndata3 = {'my_date_day': '', 'my_date_month': '', 'my_date_year': ''}\\nprint(\\\"empty:\\\", widget.value_from_datadict(data3, None, 'my_date'))\\nEOF\"}",
+            "name": "bash"
+          },
+          "id": "call_6def1b168efe6b829250558eaf9b5538",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "Need settings configured. Let me configure settings.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && python - <<'EOF'\nimport sys\nfrom django.conf import settings\nsettings.configure(USE_I18N=True)\nfrom django.forms import SelectDateWidget\n\nwidget = SelectDateWidget()\ndata = {'my_date_day': '1', 'my_date_month': '1', 'my_date_year': '1234567821345678'}\nresult = widget.value_from_datadict(data, None, 'my_date')\nprint(\"large result:\", result)\n\ndata2 = {'my_date_day': '1', 'my_date_month': '1', 'my_date_year': '2020'}\nprint(\"normal:\", widget.value_from_datadict(data2, None, 'my_date'))\ndata3 = {'my_date_day': '', 'my_date_month': '', 'my_date_year': ''}\nprint(\"empty:\", widget.value_from_datadict(data3, None, 'my_date'))\nEOF",
+            "tool_call_id": "call_6def1b168efe6b829250558eaf9b5538"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-10",
+          "created": 1786135141,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && python - <<'EOF'\\nimport sys\\nfrom django.conf import settings\\nsettings.configure(USE_I18N=True)\\nfrom django.forms import SelectDateWidget\\n\\nwidget = SelectDateWidget()\\ndata = {'my_date_day': '1', 'my_date_month': '1', 'my_date_year': '1234567821345678'}\\nresult = widget.value_from_datadict(data, None, 'my_date')\\nprint(\\\"large result:\\\", result)\\n\\ndata2 = {'my_date_day': '1', 'my_date_month': '1', 'my_date_year': '2020'}\\nprint(\\\"normal:\\\", widget.value_from_datadict(data2, None, 'my_date'))\\ndata3 = {'my_date_day': '', 'my_date_month': '', 'my_date_year': ''}\\nprint(\\\"empty:\\\", widget.value_from_datadict(data3, None, 'my_date'))\\nEOF\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_6def1b168efe6b829250558eaf9b5538",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "Need settings configured. Let me configure settings.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 238,
+            "prompt_tokens": 4614,
+            "total_tokens": 4852,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 323,
+              "cached_tokens": 4291
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 598.5,
+            "prefill_tokens": 323,
+            "prefill_cached_tokens": 4291,
+            "prefill_tok_s": 561.4,
+            "decode_tok_s": 12.4,
+            "tok_per_step": 1.0
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786135142.3060281
+      }
+    },
+    {
+      "content": "<returncode>1</returncode>\n<output>\nTraceback (most recent call last):\n  File \"<stdin>\", line 8, in <module>\n  File \"/testbed/django/forms/widgets.py\", line 1156, in value_from_datadict\n    input_format = get_format(\"DATE_INPUT_FORMATS\")[0]\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/testbed/django/utils/formats.py\", line 125, in get_format\n    for module in get_format_modules(lang):\n                  ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/testbed/django/utils/formats.py\", line 94, in get_format_modules\n    _format_modules_cache[lang] = list(\n                                  ^^^^^\n  File \"/testbed/django/utils/formats.py\", line 64, in iter_format_modules\n    if not check_for_language(lang):\n           ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/testbed/django/utils/translation/__init__.py\", line 218, in check_for_language\n    return _trans.check_for_language(lang_code)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/testbed/django/utils/translation/trans_real.py\", line 478, in check_for_language\n    for path in all_locale_paths()\n                ^^^^^^^^^^^^^^^^^^\n  File \"/testbed/django/utils/translation/trans_real.py\", line 455, in all_locale_paths\n    for app_config in apps.get_app_configs():\n                      ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/testbed/django/apps/registry.py\", line 147, in get_app_configs\n    self.check_apps_ready()\n  File \"/testbed/django/apps/registry.py\", line 138, in check_apps_ready\n    raise AppRegistryNotReady(\"Apps aren't loaded yet.\")\ndjango.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.\n</output>",
+      "extra": {
+        "raw_output": "Traceback (most recent call last):\n  File \"<stdin>\", line 8, in <module>\n  File \"/testbed/django/forms/widgets.py\", line 1156, in value_from_datadict\n    input_format = get_format(\"DATE_INPUT_FORMATS\")[0]\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/testbed/django/utils/formats.py\", line 125, in get_format\n    for module in get_format_modules(lang):\n                  ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/testbed/django/utils/formats.py\", line 94, in get_format_modules\n    _format_modules_cache[lang] = list(\n                                  ^^^^^\n  File \"/testbed/django/utils/formats.py\", line 64, in iter_format_modules\n    if not check_for_language(lang):\n           ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/testbed/django/utils/translation/__init__.py\", line 218, in check_for_language\n    return _trans.check_for_language(lang_code)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/testbed/django/utils/translation/trans_real.py\", line 478, in check_for_language\n    for path in all_locale_paths()\n                ^^^^^^^^^^^^^^^^^^\n  File \"/testbed/django/utils/translation/trans_real.py\", line 455, in all_locale_paths\n    for app_config in apps.get_app_configs():\n                      ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/testbed/django/apps/registry.py\", line 147, in get_app_configs\n    self.check_apps_ready()\n  File \"/testbed/django/apps/registry.py\", line 138, in check_apps_ready\n    raise AppRegistryNotReady(\"Apps aren't loaded yet.\")\ndjango.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.\n",
+        "returncode": 1,
+        "timestamp": 1786135143.3578248,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_6def1b168efe6b829250558eaf9b5538",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && python - <<'EOF'\\nimport django\\nfrom django.conf import settings\\nsettings.configure(USE_I18N=True)\\ndjango.setup()\\nfrom django.forms import SelectDateWidget\\n\\nwidget = SelectDateWidget()\\ndata = {'my_date_day': '1', 'my_date_month': '1', 'my_date_year': '1234567821345678'}\\nresult = widget.value_from_datadict(data, None, 'my_date')\\nprint(\\\"large result:\\\", result)\\n\\ndata2 = {'my_date_day': '1', 'my_date_month': '1', 'my_date_year': '2020'}\\nprint(\\\"normal:\\\", widget.value_from_datadict(data2, None, 'my_date'))\\ndata3 = {'my_date_day': '', 'my_date_month': '', 'my_date_year': ''}\\nprint(\\\"empty:\\\", widget.value_from_datadict(data3, None, 'my_date'))\\nEOF\"}",
+            "name": "bash"
+          },
+          "id": "call_39ac8c6993d432f45be247492e57c908",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "Need apps ready. Let me use django.setup or configure with INSTALLED_APPS. Simplest: call django.setup() after settings.configure with default settings? Let me just call `django.setup()`.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && python - <<'EOF'\nimport django\nfrom django.conf import settings\nsettings.configure(USE_I18N=True)\ndjango.setup()\nfrom django.forms import SelectDateWidget\n\nwidget = SelectDateWidget()\ndata = {'my_date_day': '1', 'my_date_month': '1', 'my_date_year': '1234567821345678'}\nresult = widget.value_from_datadict(data, None, 'my_date')\nprint(\"large result:\", result)\n\ndata2 = {'my_date_day': '1', 'my_date_month': '1', 'my_date_year': '2020'}\nprint(\"normal:\", widget.value_from_datadict(data2, None, 'my_date'))\ndata3 = {'my_date_day': '', 'my_date_month': '', 'my_date_year': ''}\nprint(\"empty:\", widget.value_from_datadict(data3, None, 'my_date'))\nEOF",
+            "tool_call_id": "call_39ac8c6993d432f45be247492e57c908"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-12",
+          "created": 1786135172,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && python - <<'EOF'\\nimport django\\nfrom django.conf import settings\\nsettings.configure(USE_I18N=True)\\ndjango.setup()\\nfrom django.forms import SelectDateWidget\\n\\nwidget = SelectDateWidget()\\ndata = {'my_date_day': '1', 'my_date_month': '1', 'my_date_year': '1234567821345678'}\\nresult = widget.value_from_datadict(data, None, 'my_date')\\nprint(\\\"large result:\\\", result)\\n\\ndata2 = {'my_date_day': '1', 'my_date_month': '1', 'my_date_year': '2020'}\\nprint(\\\"normal:\\\", widget.value_from_datadict(data2, None, 'my_date'))\\ndata3 = {'my_date_day': '', 'my_date_month': '', 'my_date_year': ''}\\nprint(\\\"empty:\\\", widget.value_from_datadict(data3, None, 'my_date'))\\nEOF\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_39ac8c6993d432f45be247492e57c908",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "Need apps ready. Let me use django.setup or configure with INSTALLED_APPS. Simplest: call django.setup() after settings.configure with default settings? Let me just call `django.setup()`.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 280,
+            "prompt_tokens": 5282,
+            "total_tokens": 5562,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 431,
+              "cached_tokens": 4851
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 4749.5,
+            "prefill_tokens": 431,
+            "prefill_cached_tokens": 4851,
+            "prefill_tok_s": 99.1,
+            "decode_tok_s": 11.2,
+            "tok_per_step": 1.0
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786135173.1312203
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\nlarge result: 1234567821345678-1-1\nnormal: 2020-01-01\nempty: None\n</output>",
+      "extra": {
+        "raw_output": "large result: 1234567821345678-1-1\nnormal: 2020-01-01\nempty: None\n",
+        "returncode": 0,
+        "timestamp": 1786135174.221212,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_39ac8c6993d432f45be247492e57c908",
+      "role": "tool"
+    },
+    {
+      "content": "The fix works. Let me verify the diff and create the patch file.",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && git diff -- django/forms/widgets.py\"}",
+            "name": "bash"
+          },
+          "id": "call_a97785cda3bd2a08dd6f5a4813d0cbc5",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "The fix works. The large value no longer raises OverflowError and returns pseudo-ISO date. Now let me check the diff and create the patch.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && git diff -- django/forms/widgets.py",
+            "tool_call_id": "call_a97785cda3bd2a08dd6f5a4813d0cbc5"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-14",
+          "created": 1786135197,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "The fix works. Let me verify the diff and create the patch file.",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && git diff -- django/forms/widgets.py\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_a97785cda3bd2a08dd6f5a4813d0cbc5",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "The fix works. The large value no longer raises OverflowError and returns pseudo-ISO date. Now let me check the diff and create the patch.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 100,
+            "prompt_tokens": 5616,
+            "total_tokens": 5716,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 5252,
+              "cached_tokens": 364
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 15376.2,
+            "prefill_tokens": 5360,
+            "prefill_cached_tokens": 256,
+            "prefill_tok_s": 621.2,
+            "decode_tok_s": 12.0,
+            "tok_per_step": 1.01
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786135197.874711
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\ndiff --git a/django/forms/widgets.py b/django/forms/widgets.py\nindex 842b73e95c..f4bc74b7cd 100644\n--- a/django/forms/widgets.py\n+++ b/django/forms/widgets.py\n@@ -1157,7 +1157,7 @@ class SelectDateWidget(Widget):\n             input_format = formats.sanitize_strftime_format(input_format)\n             try:\n                 date_value = datetime.date(int(y), int(m), int(d))\n-            except ValueError:\n+            except (ValueError, OverflowError):\n                 # Return pseudo-ISO dates with zeros for any unselected values,\n                 # e.g. '2017-0-23'.\n                 return \"%s-%s-%s\" % (y or 0, m or 0, d or 0)\n</output>",
+      "extra": {
+        "raw_output": "diff --git a/django/forms/widgets.py b/django/forms/widgets.py\nindex 842b73e95c..f4bc74b7cd 100644\n--- a/django/forms/widgets.py\n+++ b/django/forms/widgets.py\n@@ -1157,7 +1157,7 @@ class SelectDateWidget(Widget):\n             input_format = formats.sanitize_strftime_format(input_format)\n             try:\n                 date_value = datetime.date(int(y), int(m), int(d))\n-            except ValueError:\n+            except (ValueError, OverflowError):\n                 # Return pseudo-ISO dates with zeros for any unselected values,\n                 # e.g. '2017-0-23'.\n                 return \"%s-%s-%s\" % (y or 0, m or 0, d or 0)\n",
+        "returncode": 0,
+        "timestamp": 1786135198.3970792,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_a97785cda3bd2a08dd6f5a4813d0cbc5",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && git diff -- django/forms/widgets.py > patch.txt && cat patch.txt\"}",
+            "name": "bash"
+          },
+          "id": "call_46a74306a4c14e1dbff563fe16ec28de",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && git diff -- django/forms/widgets.py > patch.txt && cat patch.txt",
+            "tool_call_id": "call_46a74306a4c14e1dbff563fe16ec28de"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-17",
+          "created": 1786135234,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && git diff -- django/forms/widgets.py > patch.txt && cat patch.txt\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_46a74306a4c14e1dbff563fe16ec28de",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 63,
+            "prompt_tokens": 5923,
+            "total_tokens": 5986,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 5559,
+              "cached_tokens": 364
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 14147.5,
+            "prefill_tokens": 5923,
+            "prefill_cached_tokens": 0,
+            "prefill_tok_s": 624.8,
+            "decode_tok_s": 2.7,
+            "tok_per_step": 1.02
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786135235.4436378
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\ndiff --git a/django/forms/widgets.py b/django/forms/widgets.py\nindex 842b73e95c..f4bc74b7cd 100644\n--- a/django/forms/widgets.py\n+++ b/django/forms/widgets.py\n@@ -1157,7 +1157,7 @@ class SelectDateWidget(Widget):\n             input_format = formats.sanitize_strftime_format(input_format)\n             try:\n                 date_value = datetime.date(int(y), int(m), int(d))\n-            except ValueError:\n+            except (ValueError, OverflowError):\n                 # Return pseudo-ISO dates with zeros for any unselected values,\n                 # e.g. '2017-0-23'.\n                 return \"%s-%s-%s\" % (y or 0, m or 0, d or 0)\n</output>",
+      "extra": {
+        "raw_output": "diff --git a/django/forms/widgets.py b/django/forms/widgets.py\nindex 842b73e95c..f4bc74b7cd 100644\n--- a/django/forms/widgets.py\n+++ b/django/forms/widgets.py\n@@ -1157,7 +1157,7 @@ class SelectDateWidget(Widget):\n             input_format = formats.sanitize_strftime_format(input_format)\n             try:\n                 date_value = datetime.date(int(y), int(m), int(d))\n-            except ValueError:\n+            except (ValueError, OverflowError):\n                 # Return pseudo-ISO dates with zeros for any unselected values,\n                 # e.g. '2017-0-23'.\n                 return \"%s-%s-%s\" % (y or 0, m or 0, d or 0)\n",
+        "returncode": 0,
+        "timestamp": 1786135236.2605171,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_46a74306a4c14e1dbff563fe16ec28de",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT && cat patch.txt\"}",
+            "name": "bash"
+          },
+          "id": "call_0dd6a5c2c8d14f94249430cd61861691",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT && cat patch.txt",
+            "tool_call_id": "call_0dd6a5c2c8d14f94249430cd61861691"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-20",
+          "created": 1786135282,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT && cat patch.txt\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_0dd6a5c2c8d14f94249430cd61861691",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 66,
+            "prompt_tokens": 6193,
+            "total_tokens": 6259,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 5829,
+              "cached_tokens": 364
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 23155.9,
+            "prefill_tokens": 6193,
+            "prefill_cached_tokens": 0,
+            "prefill_tok_s": 593.2,
+            "decode_tok_s": 2.8,
+            "tok_per_step": 1.02
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786135282.8843908
+      }
+    },
+    {
+      "role": "exit",
+      "content": "diff --git a/django/forms/widgets.py b/django/forms/widgets.py\nindex 842b73e95c..f4bc74b7cd 100644\n--- a/django/forms/widgets.py\n+++ b/django/forms/widgets.py\n@@ -1157,7 +1157,7 @@ class SelectDateWidget(Widget):\n             input_format = formats.sanitize_strftime_format(input_format)\n             try:\n                 date_value = datetime.date(int(y), int(m), int(d))\n-            except ValueError:\n+            except (ValueError, OverflowError):\n                 # Return pseudo-ISO dates with zeros for any unselected values,\n                 # e.g. '2017-0-23'.\n                 return \"%s-%s-%s\" % (y or 0, m or 0, d or 0)\n",
+      "extra": {
+        "exit_status": "Submitted",
+        "submission": "diff --git a/django/forms/widgets.py b/django/forms/widgets.py\nindex 842b73e95c..f4bc74b7cd 100644\n--- a/django/forms/widgets.py\n+++ b/django/forms/widgets.py\n@@ -1157,7 +1157,7 @@ class SelectDateWidget(Widget):\n             input_format = formats.sanitize_strftime_format(input_format)\n             try:\n                 date_value = datetime.date(int(y), int(m), int(d))\n-            except ValueError:\n+            except (ValueError, OverflowError):\n                 # Return pseudo-ISO dates with zeros for any unselected values,\n                 # e.g. '2017-0-23'.\n                 return \"%s-%s-%s\" % (y or 0, m or 0, d or 0)\n"
+      }
+    }
+  ],
+  "trajectory_format": "mini-swe-agent-1.1",
+  "instance_id": "django__django-16667"
+}

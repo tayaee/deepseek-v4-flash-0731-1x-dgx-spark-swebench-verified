@@ -1,0 +1,1566 @@
+{
+  "info": {
+    "model_stats": {
+      "instance_cost": 0.0,
+      "api_calls": 15
+    },
+    "config": {
+      "agent": {
+        "system_template": "You are a helpful assistant that can interact with a computer shell to solve programming tasks.\n",
+        "instance_template": "<pr_description>\nConsider the following PR description:\n{{task}}\n</pr_description>\n\n<instructions>\n# Task Instructions\n\n## Overview\n\nYou're a software engineer interacting continuously with a computer by submitting commands.\nYou'll be helping implement necessary changes to meet requirements in the PR description.\nYour task is specifically to make changes to non-test files in the current directory in order to fix the issue described in the PR description in a way that is general and consistent with the codebase.\n<IMPORTANT>This is an interactive process where you will think and issue AT LEAST ONE command, see the result, then think and issue your next command(s).</important>\n\nFor each response:\n\n1. Include a THOUGHT section explaining your reasoning and what you're trying to accomplish\n2. Provide one or more bash tool calls to execute\n\n## Important Boundaries\n\n- MODIFY: Regular source code files in /testbed (this is the working directory for all your subsequent commands)\n- DO NOT MODIFY: Tests, configuration files (pyproject.toml, setup.cfg, etc.)\n\n## Recommended Workflow\n\n1. Analyze the codebase by finding and reading relevant files\n2. Create a script to reproduce the issue\n3. Edit the source code to resolve the issue\n4. Verify your fix works by running your script again\n5. Test edge cases to ensure your fix is robust\n\n## Command Execution Rules\n\nYou are operating in an environment where\n\n1. You issue at least one command\n2. The system executes the command(s) in a subshell\n3. You see the result(s)\n4. You write your next command(s)\n\nEach response should include:\n\n1. **Reasoning text** where you explain your analysis and plan\n2. At least one tool call with your command\n\n**CRITICAL REQUIREMENTS:**\n\n- Your response SHOULD include reasoning text explaining what you're doing\n- Your response MUST include AT LEAST ONE bash tool call. You can make MULTIPLE tool calls in a single response when the commands are independent (e.g., searching multiple files, reading different parts of the codebase).\n- Directory or environment variable changes are not persistent. Every action is executed in a new subshell.\n- However, you can prefix any action with `MY_ENV_VAR=MY_VALUE cd /path/to/working/dir && ...` or write/load environment variables from files\n\nExample of a CORRECT response:\n<example_response>\nI need to understand the Builder-related code. Let me find relevant files and check the project structure.\n\n[Makes multiple bash tool calls: {\"command\": \"ls -la\"}, {\"command\": \"find src -name '*.java' | grep -i builder\"}, {\"command\": \"cat README.md | head -50\"}]\n</example_response>\n\n## Environment Details\n\n- You have a full Linux shell environment\n- Always use non-interactive flags (-y, -f) for commands\n- Avoid interactive tools like vi, nano, or any that require user input\n- You can use bash commands or invoke any tool that is available in the environment\n- You can also create new tools or scripts to help you with the task\n- If a tool isn't available, you can also install it\n\n## Submission\n\nWhen you've completed your work, you MUST submit your changes as a git patch.\nFollow these steps IN ORDER, with SEPARATE commands:\n\nStep 1: Create the patch file\nRun `git diff -- path/to/file1 path/to/file2 > patch.txt` listing only the source files you modified.\nDo NOT commit your changes.\n\n<IMPORTANT>\nThe patch must only contain changes to the specific source files you modified to fix the issue.\nDo not submit file creations or changes to any of the following files:\n\n- test and reproduction files\n- helper scripts, tests, or tools that you created\n- installation, build, packaging, configuration, or setup scripts unless they are directly part of the issue you were fixing (you can assume that the environment is already set up for your client)\n- binary or compiled files\n</IMPORTANT>\n\nStep 2: Verify your patch\nInspect patch.txt to confirm it only contains your intended changes and headers show `--- a/` and `+++ b/` paths.\n\nStep 3: Submit (EXACT command required)\nYou MUST use this EXACT command to submit:\n\n```bash\necho COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT && cat patch.txt\n```\n\nIf the command fails (nonzero exit status), it will not submit.\n\n<CRITICAL>\n- Creating/viewing the patch and submitting it MUST be separate commands (not combined with &&).\n- If you modify patch.txt after verifying, you SHOULD verify again before submitting.\n- You CANNOT continue working (reading, editing, testing) in any way on this task after submitting.\n</CRITICAL>\n</instructions>\n",
+        "step_limit": 250,
+        "cost_limit": 3.0,
+        "wall_time_limit_seconds": 0,
+        "max_consecutive_format_errors": 3,
+        "output_path": null
+      },
+      "agent_type": "minisweagent.run.benchmarks.utils.common.ProgressTrackingAgent",
+      "model": {
+        "model_name": "openai/deepseek-v4-flash",
+        "model_kwargs": {
+          "drop_params": true,
+          "parallel_tool_calls": true
+        },
+        "litellm_model_registry": null,
+        "set_cache_control": null,
+        "cost_tracking": "ignore_errors",
+        "format_error_template": "{% if finish_reason is defined and (finish_reason == \"length\" or (finish_reason == \"tool_calls\" and not has_tool_calls)) -%}\nYour previous response reached the output token limit (finish_reason={{ finish_reason }}) before you produced a tool call, so it was cut off. Respond more concisely and finish with exactly one bash tool call. If you need to think more, do so briefly.\n{%- else -%}\nTool call error:\n\n<error>\n{{error}}\n</error>\n\nHere is general guidance on how to submit correct toolcalls:\n\nEvery response needs to use the 'bash' tool at least once to execute commands.\n\nCall the bash tool with your command as the argument:\n- Tool: bash\n- Arguments: {\"command\": \"your_command_here\"}\n\nIf you have completed your assignment, please consult the first message about how to\nsubmit your solution (you will not be able to continue working on this task after that).\n{%- endif %}\n",
+        "observation_template": "{% if output.exception_info -%}\n<exception>{{output.exception_info}}</exception>\n{% endif -%}\n<returncode>{{output.returncode}}</returncode>\n{% if output.output | length < 10000 -%}\n<output>\n{{ output.output -}}\n</output>\n{%- else -%}\n<warning>\nThe output of your last command was too long.\nPlease try a different command that produces less output.\nIf you're looking at a file you can try use head, tail or sed to view a smaller number of lines selectively.\nIf you're using grep or find and it produced too much output, you can use a more selective search pattern.\nIf you really need to see something from the full command's output, you can redirect output to a file and then search in that file.\n</warning>\n{%- set elided_chars = output.output | length - 10000 -%}\n<output_head>\n{{ output.output[:5000] }}\n</output_head>\n<elided_chars>\n{{ elided_chars }} characters elided\n</elided_chars>\n<output_tail>\n{{ output.output[-5000:] }}\n</output_tail>\n{%- endif -%}\n",
+        "multimodal_regex": ""
+      },
+      "model_type": "minisweagent.models.litellm_model.LitellmModel",
+      "environment": {
+        "image": "docker.io/swebench/sweb.eval.x86_64.astropy_1776_astropy-14995:latest",
+        "cwd": "/testbed",
+        "env": {
+          "PAGER": "cat",
+          "MANPAGER": "cat",
+          "LESS": "-R",
+          "PIP_PROGRESS_BAR": "off",
+          "TQDM_DISABLE": "1",
+          "BASH_ENV": "/root/.bashrc"
+        },
+        "forward_env": [],
+        "timeout": 60,
+        "executable": "docker",
+        "run_args": [
+          "--rm"
+        ],
+        "container_timeout": "2h",
+        "pull_timeout": 600,
+        "interpreter": [
+          "bash",
+          "-c"
+        ]
+      },
+      "environment_type": "minisweagent.environments.docker.DockerEnvironment"
+    },
+    "mini_version": "2.4.5",
+    "exit_status": "Submitted",
+    "submission": "diff --git a/astropy/nddata/mixins/ndarithmetic.py b/astropy/nddata/mixins/ndarithmetic.py\nindex 4153dfccb..4a4ba3356 100644\n--- a/astropy/nddata/mixins/ndarithmetic.py\n+++ b/astropy/nddata/mixins/ndarithmetic.py\n@@ -513,14 +513,12 @@ class NDArithmeticMixin:\n             ``handle_mask`` must create (and copy) the returned mask.\n         \"\"\"\n         # If only one mask is present we need not bother about any type checks\n-        if (\n-            self.mask is None and operand is not None and operand.mask is None\n-        ) or handle_mask is None:\n+        if handle_mask is None:\n             return None\n-        elif self.mask is None and operand is not None:\n+        elif self.mask is None:\n             # Make a copy so there is no reference in the result.\n             return deepcopy(operand.mask)\n-        elif operand is None:\n+        elif operand is None or operand.mask is None:\n             return deepcopy(self.mask)\n         else:\n             # Now lets calculate the resulting mask (operation enforces copy)\n"
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful assistant that can interact with a computer shell to solve programming tasks."
+    },
+    {
+      "role": "user",
+      "content": "<pr_description>\nConsider the following PR description:\nIn v5.3, NDDataRef mask propagation fails when one of the operand does not have a mask\n### Description\n\nThis applies to v5.3. \r\n\r\nIt looks like when one of the operand does not have a mask, the mask propagation when doing arithmetic, in particular with `handle_mask=np.bitwise_or` fails.  This is not a problem in v5.2.\r\n\r\nI don't know enough about how all that works, but it seems from the error that the operand without a mask is set as a mask of None's and then the bitwise_or tries to operate on an integer and a None and fails.\n\n### Expected behavior\n\nWhen one of the operand does not have mask, the mask that exists should just be copied over to the output.  Or whatever was done in that situation in v5.2 where there's no problem.\n\n### How to Reproduce\n\nThis is with v5.3.   With v5.2, there are no errors.\r\n\r\n```\r\n>>> import numpy as np\r\n>>> from astropy.nddata import NDDataRef\r\n\r\n>>> array = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])\r\n>>> mask = np.array([[0, 1, 64], [8, 0, 1], [2, 1, 0]])\r\n\r\n>>> nref_nomask = NDDataRef(array)\r\n>>> nref_mask = NDDataRef(array, mask=mask)\r\n\r\n# multiply no mask by constant (no mask * no mask)\r\n>>> nref_nomask.multiply(1., handle_mask=np.bitwise_or).mask   # returns nothing, no mask,  OK\r\n\r\n# multiply no mask by itself (no mask * no mask)\r\n>>> nref_nomask.multiply(nref_nomask, handle_mask=np.bitwise_or).mask # return nothing, no mask, OK\r\n\r\n# multiply mask by constant (mask * no mask)\r\n>>> nref_mask.multiply(1., handle_mask=np.bitwise_or).mask\r\n...\r\nTypeError: unsupported operand type(s) for |: 'int' and 'NoneType'\r\n\r\n# multiply mask by itself (mask * mask)\r\n>>> nref_mask.multiply(nref_mask, handle_mask=np.bitwise_or).mask\r\narray([[ 0,  1, 64],\r\n       [ 8,  0,  1],\r\n       [ 2,  1,  0]])\r\n\r\n# multiply mask by no mask (mask * no mask)\r\n>>> nref_mask.multiply(nref_nomask, handle_mask=np.bitwise_or).mask\r\n...\r\nTypeError: unsupported operand type(s) for |: 'int' and 'NoneType'\r\n```\r\n\n\n### Versions\n\n>>> import sys; print(\"Python\", sys.version)\r\nPython 3.10.11 | packaged by conda-forge | (main, May 10 2023, 19:07:22) [Clang 14.0.6 ]\r\n>>> import astropy; print(\"astropy\", astropy.__version__)\r\nastropy 5.3\r\n>>> import numpy; print(\"Numpy\", numpy.__version__)\r\nNumpy 1.24.3\r\n>>> import erfa; print(\"pyerfa\", erfa.__version__)\r\npyerfa 2.0.0.3\r\n>>> import scipy; print(\"Scipy\", scipy.__version__)\r\nScipy 1.10.1\r\n>>> import matplotlib; print(\"Matplotlib\", matplotlib.__version__)\r\nMatplotlib 3.7.1\r\n\n\n</pr_description>\n\n<instructions>\n# Task Instructions\n\n## Overview\n\nYou're a software engineer interacting continuously with a computer by submitting commands.\nYou'll be helping implement necessary changes to meet requirements in the PR description.\nYour task is specifically to make changes to non-test files in the current directory in order to fix the issue described in the PR description in a way that is general and consistent with the codebase.\n<IMPORTANT>This is an interactive process where you will think and issue AT LEAST ONE command, see the result, then think and issue your next command(s).</important>\n\nFor each response:\n\n1. Include a THOUGHT section explaining your reasoning and what you're trying to accomplish\n2. Provide one or more bash tool calls to execute\n\n## Important Boundaries\n\n- MODIFY: Regular source code files in /testbed (this is the working directory for all your subsequent commands)\n- DO NOT MODIFY: Tests, configuration files (pyproject.toml, setup.cfg, etc.)\n\n## Recommended Workflow\n\n1. Analyze the codebase by finding and reading relevant files\n2. Create a script to reproduce the issue\n3. Edit the source code to resolve the issue\n4. Verify your fix works by running your script again\n5. Test edge cases to ensure your fix is robust\n\n## Command Execution Rules\n\nYou are operating in an environment where\n\n1. You issue at least one command\n2. The system executes the command(s) in a subshell\n3. You see the result(s)\n4. You write your next command(s)\n\nEach response should include:\n\n1. **Reasoning text** where you explain your analysis and plan\n2. At least one tool call with your command\n\n**CRITICAL REQUIREMENTS:**\n\n- Your response SHOULD include reasoning text explaining what you're doing\n- Your response MUST include AT LEAST ONE bash tool call. You can make MULTIPLE tool calls in a single response when the commands are independent (e.g., searching multiple files, reading different parts of the codebase).\n- Directory or environment variable changes are not persistent. Every action is executed in a new subshell.\n- However, you can prefix any action with `MY_ENV_VAR=MY_VALUE cd /path/to/working/dir && ...` or write/load environment variables from files\n\nExample of a CORRECT response:\n<example_response>\nI need to understand the Builder-related code. Let me find relevant files and check the project structure.\n\n[Makes multiple bash tool calls: {\"command\": \"ls -la\"}, {\"command\": \"find src -name '*.java' | grep -i builder\"}, {\"command\": \"cat README.md | head -50\"}]\n</example_response>\n\n## Environment Details\n\n- You have a full Linux shell environment\n- Always use non-interactive flags (-y, -f) for commands\n- Avoid interactive tools like vi, nano, or any that require user input\n- You can use bash commands or invoke any tool that is available in the environment\n- You can also create new tools or scripts to help you with the task\n- If a tool isn't available, you can also install it\n\n## Submission\n\nWhen you've completed your work, you MUST submit your changes as a git patch.\nFollow these steps IN ORDER, with SEPARATE commands:\n\nStep 1: Create the patch file\nRun `git diff -- path/to/file1 path/to/file2 > patch.txt` listing only the source files you modified.\nDo NOT commit your changes.\n\n<IMPORTANT>\nThe patch must only contain changes to the specific source files you modified to fix the issue.\nDo not submit file creations or changes to any of the following files:\n\n- test and reproduction files\n- helper scripts, tests, or tools that you created\n- installation, build, packaging, configuration, or setup scripts unless they are directly part of the issue you were fixing (you can assume that the environment is already set up for your client)\n- binary or compiled files\n</IMPORTANT>\n\nStep 2: Verify your patch\nInspect patch.txt to confirm it only contains your intended changes and headers show `--- a/` and `+++ b/` paths.\n\nStep 3: Submit (EXACT command required)\nYou MUST use this EXACT command to submit:\n\n```bash\necho COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT && cat patch.txt\n```\n\nIf the command fails (nonzero exit status), it will not submit.\n\n<CRITICAL>\n- Creating/viewing the patch and submitting it MUST be separate commands (not combined with &&).\n- If you modify patch.txt after verifying, you SHOULD verify again before submitting.\n- You CANNOT continue working (reading, editing, testing) in any way on this task after submitting.\n</CRITICAL>\n</instructions>"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && ls && find . -path '*nddata*' -name '*.py' | head -50\"}",
+            "name": "bash"
+          },
+          "id": "call_a60bbb2b26f444a44e06ec095d420357",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "We need to fix the issue in astropy nddata NDDataRef mask propagation. Let's explore the codebase.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && ls && find . -path '*nddata*' -name '*.py' | head -50",
+            "tool_call_id": "call_a60bbb2b26f444a44e06ec095d420357"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-1193",
+          "created": 1785980530,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && ls && find . -path '*nddata*' -name '*.py' | head -50\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_a60bbb2b26f444a44e06ec095d420357",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "We need to fix the issue in astropy nddata NDDataRef mask propagation. Let's explore the codebase.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 92,
+            "prompt_tokens": 2202,
+            "total_tokens": 2294,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 1838,
+              "cached_tokens": 364
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 3875.8,
+            "prefill_tokens": 2202,
+            "prefill_cached_tokens": 0,
+            "prefill_tok_s": 577.7,
+            "decode_tok_s": 11.5,
+            "tok_per_step": 1.01
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1785980530.63536
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\nCHANGES.rst\nCITATION\nCODE_OF_CONDUCT.md\nCONTRIBUTING.md\nGOVERNANCE.md\nLICENSE.rst\nMANIFEST.in\nREADME.rst\nastropy\nastropy.egg-info\ncextern\ncodecov.yml\nconftest.py\ndocs\nexamples\nlicenses\npyproject.toml\nsetup.cfg\nsetup.py\ntox.ini\n./astropy/nddata/compat.py\n./astropy/nddata/blocks.py\n./astropy/nddata/utils.py\n./astropy/nddata/ccddata.py\n./astropy/nddata/mixins/ndslicing.py\n./astropy/nddata/mixins/__init__.py\n./astropy/nddata/mixins/tests/test_ndarithmetic.py\n./astropy/nddata/mixins/tests/__init__.py\n./astropy/nddata/mixins/tests/test_ndio.py\n./astropy/nddata/mixins/tests/test_ndslicing.py\n./astropy/nddata/mixins/ndarithmetic.py\n./astropy/nddata/mixins/ndio.py\n./astropy/nddata/decorators.py\n./astropy/nddata/nduncertainty.py\n./astropy/nddata/flag_collection.py\n./astropy/nddata/_testing.py\n./astropy/nddata/nddata_withmixins.py\n./astropy/nddata/bitmask.py\n./astropy/nddata/nddata.py\n./astropy/nddata/__init__.py\n./astropy/nddata/tests/test_nddata.py\n./astropy/nddata/tests/test_decorators.py\n./astropy/nddata/tests/test_blocks.py\n./astropy/nddata/tests/test_bitmask.py\n./astropy/nddata/tests/test_utils.py\n./astropy/nddata/tests/test_compat.py\n./astropy/nddata/tests/__init__.py\n./astropy/nddata/tests/test_nduncertainty.py\n./astropy/nddata/tests/test_ccddata.py\n./astropy/nddata/tests/test_flag_collection.py\n./astropy/nddata/tests/test_nddata_base.py\n./astropy/nddata/nddata_base.py\n./astropy/convolution/tests/test_convolve_nddata.py\n./docs/nddata/examples/cutout2d_tofits.py\n</output>",
+      "extra": {
+        "raw_output": "CHANGES.rst\nCITATION\nCODE_OF_CONDUCT.md\nCONTRIBUTING.md\nGOVERNANCE.md\nLICENSE.rst\nMANIFEST.in\nREADME.rst\nastropy\nastropy.egg-info\ncextern\ncodecov.yml\nconftest.py\ndocs\nexamples\nlicenses\npyproject.toml\nsetup.cfg\nsetup.py\ntox.ini\n./astropy/nddata/compat.py\n./astropy/nddata/blocks.py\n./astropy/nddata/utils.py\n./astropy/nddata/ccddata.py\n./astropy/nddata/mixins/ndslicing.py\n./astropy/nddata/mixins/__init__.py\n./astropy/nddata/mixins/tests/test_ndarithmetic.py\n./astropy/nddata/mixins/tests/__init__.py\n./astropy/nddata/mixins/tests/test_ndio.py\n./astropy/nddata/mixins/tests/test_ndslicing.py\n./astropy/nddata/mixins/ndarithmetic.py\n./astropy/nddata/mixins/ndio.py\n./astropy/nddata/decorators.py\n./astropy/nddata/nduncertainty.py\n./astropy/nddata/flag_collection.py\n./astropy/nddata/_testing.py\n./astropy/nddata/nddata_withmixins.py\n./astropy/nddata/bitmask.py\n./astropy/nddata/nddata.py\n./astropy/nddata/__init__.py\n./astropy/nddata/tests/test_nddata.py\n./astropy/nddata/tests/test_decorators.py\n./astropy/nddata/tests/test_blocks.py\n./astropy/nddata/tests/test_bitmask.py\n./astropy/nddata/tests/test_utils.py\n./astropy/nddata/tests/test_compat.py\n./astropy/nddata/tests/__init__.py\n./astropy/nddata/tests/test_nduncertainty.py\n./astropy/nddata/tests/test_ccddata.py\n./astropy/nddata/tests/test_flag_collection.py\n./astropy/nddata/tests/test_nddata_base.py\n./astropy/nddata/nddata_base.py\n./astropy/convolution/tests/test_convolve_nddata.py\n./docs/nddata/examples/cutout2d_tofits.py\n",
+        "returncode": 0,
+        "timestamp": 1785980531.6953208,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_a60bbb2b26f444a44e06ec095d420357",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && grep -n \\\"mask\\\" astropy/nddata/nddata_base.py | head -100\"}",
+            "name": "bash"
+          },
+          "id": "call_69c119a0db7fc20e1a6da9bd64e43cf8",
+          "type": "function"
+        },
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && grep -n \\\"def _propagate\\\\|_propagate\\\\|bitwise\\\" astropy/nddata/nddata_base.py astropy/nddata/mixins/ndarithmetic.py\"}",
+            "name": "bash"
+          },
+          "id": "call_a22e3170d8ae9ac8e32ed503a95e2ee3",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "The mask propagation logic is in nddata_base.py or ndarithmetic.py. Let's look at nddata_base.py and ndarithmetic.py.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && grep -n \"mask\" astropy/nddata/nddata_base.py | head -100",
+            "tool_call_id": "call_69c119a0db7fc20e1a6da9bd64e43cf8"
+          },
+          {
+            "command": "cd /testbed && grep -n \"def _propagate\\|_propagate\\|bitwise\" astropy/nddata/nddata_base.py astropy/nddata/mixins/ndarithmetic.py",
+            "tool_call_id": "call_a22e3170d8ae9ac8e32ed503a95e2ee3"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-1195",
+          "created": 1785980547,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && grep -n \\\"mask\\\" astropy/nddata/nddata_base.py | head -100\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_69c119a0db7fc20e1a6da9bd64e43cf8",
+                    "type": "function"
+                  },
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && grep -n \\\"def _propagate\\\\|_propagate\\\\|bitwise\\\" astropy/nddata/nddata_base.py astropy/nddata/mixins/ndarithmetic.py\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_a22e3170d8ae9ac8e32ed503a95e2ee3",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "The mask propagation logic is in nddata_base.py or ndarithmetic.py. Let's look at nddata_base.py and ndarithmetic.py.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 171,
+            "prompt_tokens": 2873,
+            "total_tokens": 3044,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 580,
+              "cached_tokens": 2293
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 2156.5,
+            "prefill_tokens": 580,
+            "prefill_cached_tokens": 2293,
+            "prefill_tok_s": 275.7,
+            "decode_tok_s": 11.9,
+            "tok_per_step": 1.01
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1785980548.3709536
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n34:    def mask(self):\n</output>",
+      "extra": {
+        "raw_output": "34:    def mask(self):\n",
+        "returncode": 0,
+        "timestamp": 1785980549.584192,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_69c119a0db7fc20e1a6da9bd64e43cf8",
+      "role": "tool"
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\nastropy/nddata/mixins/ndarithmetic.py:118:        - ``mask`` : has to be something that can be used by a bitwise ``or``\n</output>",
+      "extra": {
+        "raw_output": "astropy/nddata/mixins/ndarithmetic.py:118:        - ``mask`` : has to be something that can be used by a bitwise ``or``\n",
+        "returncode": 0,
+        "timestamp": 1785980549.5885115,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_a22e3170d8ae9ac8e32ed503a95e2ee3",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && grep -n \\\"mask\\\" astropy/nddata/nddata_base.py\"}",
+            "name": "bash"
+          },
+          "id": "call_845cd162a837f4b5bba5621c83a3b3bd",
+          "type": "function"
+        },
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && grep -n \\\"def _propagate\\\\|_propagate\\\\|bitwise\\\\|mask\\\" astropy/nddata/mixins/ndarithmetic.py | head -80\"}",
+            "name": "bash"
+          },
+          "id": "call_5b9ce8dadd9e4bc4d3f0732ded4b9393",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && grep -n \"mask\" astropy/nddata/nddata_base.py",
+            "tool_call_id": "call_845cd162a837f4b5bba5621c83a3b3bd"
+          },
+          {
+            "command": "cd /testbed && grep -n \"def _propagate\\|_propagate\\|bitwise\\|mask\" astropy/nddata/mixins/ndarithmetic.py | head -80",
+            "tool_call_id": "call_5b9ce8dadd9e4bc4d3f0732ded4b9393"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-1196",
+          "created": 1785980561,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && grep -n \\\"mask\\\" astropy/nddata/nddata_base.py\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_845cd162a837f4b5bba5621c83a3b3bd",
+                    "type": "function"
+                  },
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && grep -n \\\"def _propagate\\\\|_propagate\\\\|bitwise\\\\|mask\\\" astropy/nddata/mixins/ndarithmetic.py | head -80\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_5b9ce8dadd9e4bc4d3f0732ded4b9393",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 133,
+            "prompt_tokens": 3134,
+            "total_tokens": 3267,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 91,
+              "cached_tokens": 3043
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 1790.9,
+            "prefill_tokens": 91,
+            "prefill_cached_tokens": 3043,
+            "prefill_tok_s": 52.4,
+            "decode_tok_s": 12.2,
+            "tok_per_step": 1.01
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1785980562.329486
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n34:    def mask(self):\n</output>",
+      "extra": {
+        "raw_output": "34:    def mask(self):\n",
+        "returncode": 0,
+        "timestamp": 1785980563.4712186,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_845cd162a837f4b5bba5621c83a3b3bd",
+      "role": "tool"
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n13:from astropy.utils.masked import Masked\n44:    handle_mask : callable, ``'first_found'`` or ``None``, optional\n45:        If ``None`` the result will have no mask. If ``'first_found'`` the\n47:        mask). If it is a callable then the specified callable must\n48:        create the results ``mask`` and if necessary provide a copy.\n92:    If a ``callable`` is used for ``mask``, ``wcs`` or ``meta`` the\n118:        - ``mask`` : has to be something that can be used by a bitwise ``or``\n171:        handle_mask=np.logical_or,\n175:        operation_ignores_mask=False,\n199:        handle_mask : callable, ``'first_found'`` or ``None``, optional\n211:        operation_ignores_mask : bool, optional\n212:            When True, masked values will be excluded from operations;\n214:            including masked ones.\n221:            different :meth:`NDArithmeticMixin._arithmetic_mask` (or wcs, ...)\n239:        kwds2 = {\"mask\": {}, \"meta\": {}, \"wcs\": {}, \"data\": {}, \"uncertainty\": {}}\n262:        # collapse operations on masked quantities/arrays which are supported by\n263:        # the astropy.utils.masked or np.ma modules should use those modules to\n264:        # do the arithmetic on the data and propagate masks.\n265:        use_masked_arith = operand is None and self.mask is not None\n266:        if use_masked_arith:\n267:            # if we're *including* masked values in the operation,\n269:            if not operation_ignores_mask:\n273:                    masked_input = Masked(self.data << self.unit, mask=self.mask)\n275:                    masked_input = Masked(self.data, mask=self.mask)\n276:            # if we're *excluding* masked values in the operation,\n279:                masked_input = np.ma.masked_array(self.data, self.mask)\n280:            result = operation(masked_input, axis=axis)\n282:            # let's ensure that result is a masked array, since we'll assume this later:\n283:            if not hasattr(result, \"mask\"):\n284:                result = np.ma.masked_array(\n285:                    result, mask=np.zeros_like(result, dtype=bool)\n323:        if handle_mask is None:\n325:        elif hasattr(result, \"mask\"):\n326:            # if numpy.ma or astropy.utils.masked is being used, the constructor\n327:            # will pick up the mask from the masked object:\n328:            kwargs[\"mask\"] = None\n329:        elif handle_mask in [\"ff\", \"first_found\"]:\n330:            if self.mask is None:\n331:                kwargs[\"mask\"] = deepcopy(operand.mask)\n333:                kwargs[\"mask\"] = deepcopy(self.mask)\n335:            kwargs[\"mask\"] = self._arithmetic_mask(\n336:                operation, operand, handle_mask, axis=axis, **kwds2[\"mask\"]\n485:    def _arithmetic_mask(self, operation, operand, handle_mask, axis=None, **kwds):\n487:        Calculate the resulting mask.\n490:        mask.\n502:        handle_mask : callable\n506:            Additional parameters given to ``handle_mask``.\n510:        result_mask : any type\n511:            If only one mask was present this mask is returned.\n512:            If neither had a mask ``None`` is returned. Otherwise\n513:            ``handle_mask`` must create (and copy) the returned mask.\n515:        # If only one mask is present we need not bother about any type checks\n517:            self.mask is None and operand is not None and operand.mask is None\n518:        ) or handle_mask is None:\n520:        elif self.mask is None and operand is not None:\n522:            return deepcopy(operand.mask)\n524:            return deepcopy(self.mask)\n526:            # Now lets calculate the resulting mask (operation enforces copy)\n527:            return handle_mask(self.mask, operand.mask, **kwds)\n725:            # arithmetic operations with numbers, lists, numpy arrays, numpy masked\n726:            # arrays, astropy quantities, masked quantities and of other subclasses\n742:            # for collapse operations, use astropy.utils.masked rather than handle_mask\n</output>",
+      "extra": {
+        "raw_output": "13:from astropy.utils.masked import Masked\n44:    handle_mask : callable, ``'first_found'`` or ``None``, optional\n45:        If ``None`` the result will have no mask. If ``'first_found'`` the\n47:        mask). If it is a callable then the specified callable must\n48:        create the results ``mask`` and if necessary provide a copy.\n92:    If a ``callable`` is used for ``mask``, ``wcs`` or ``meta`` the\n118:        - ``mask`` : has to be something that can be used by a bitwise ``or``\n171:        handle_mask=np.logical_or,\n175:        operation_ignores_mask=False,\n199:        handle_mask : callable, ``'first_found'`` or ``None``, optional\n211:        operation_ignores_mask : bool, optional\n212:            When True, masked values will be excluded from operations;\n214:            including masked ones.\n221:            different :meth:`NDArithmeticMixin._arithmetic_mask` (or wcs, ...)\n239:        kwds2 = {\"mask\": {}, \"meta\": {}, \"wcs\": {}, \"data\": {}, \"uncertainty\": {}}\n262:        # collapse operations on masked quantities/arrays which are supported by\n263:        # the astropy.utils.masked or np.ma modules should use those modules to\n264:        # do the arithmetic on the data and propagate masks.\n265:        use_masked_arith = operand is None and self.mask is not None\n266:        if use_masked_arith:\n267:            # if we're *including* masked values in the operation,\n269:            if not operation_ignores_mask:\n273:                    masked_input = Masked(self.data << self.unit, mask=self.mask)\n275:                    masked_input = Masked(self.data, mask=self.mask)\n276:            # if we're *excluding* masked values in the operation,\n279:                masked_input = np.ma.masked_array(self.data, self.mask)\n280:            result = operation(masked_input, axis=axis)\n282:            # let's ensure that result is a masked array, since we'll assume this later:\n283:            if not hasattr(result, \"mask\"):\n284:                result = np.ma.masked_array(\n285:                    result, mask=np.zeros_like(result, dtype=bool)\n323:        if handle_mask is None:\n325:        elif hasattr(result, \"mask\"):\n326:            # if numpy.ma or astropy.utils.masked is being used, the constructor\n327:            # will pick up the mask from the masked object:\n328:            kwargs[\"mask\"] = None\n329:        elif handle_mask in [\"ff\", \"first_found\"]:\n330:            if self.mask is None:\n331:                kwargs[\"mask\"] = deepcopy(operand.mask)\n333:                kwargs[\"mask\"] = deepcopy(self.mask)\n335:            kwargs[\"mask\"] = self._arithmetic_mask(\n336:                operation, operand, handle_mask, axis=axis, **kwds2[\"mask\"]\n485:    def _arithmetic_mask(self, operation, operand, handle_mask, axis=None, **kwds):\n487:        Calculate the resulting mask.\n490:        mask.\n502:        handle_mask : callable\n506:            Additional parameters given to ``handle_mask``.\n510:        result_mask : any type\n511:            If only one mask was present this mask is returned.\n512:            If neither had a mask ``None`` is returned. Otherwise\n513:            ``handle_mask`` must create (and copy) the returned mask.\n515:        # If only one mask is present we need not bother about any type checks\n517:            self.mask is None and operand is not None and operand.mask is None\n518:        ) or handle_mask is None:\n520:        elif self.mask is None and operand is not None:\n522:            return deepcopy(operand.mask)\n524:            return deepcopy(self.mask)\n526:            # Now lets calculate the resulting mask (operation enforces copy)\n527:            return handle_mask(self.mask, operand.mask, **kwds)\n725:            # arithmetic operations with numbers, lists, numpy arrays, numpy masked\n726:            # arrays, astropy quantities, masked quantities and of other subclasses\n742:            # for collapse operations, use astropy.utils.masked rather than handle_mask\n",
+        "returncode": 0,
+        "timestamp": 1785980563.4767218,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_5b9ce8dadd9e4bc4d3f0732ded4b9393",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && sed -n '480,545p' astropy/nddata/mixins/ndarithmetic.py\"}",
+            "name": "bash"
+          },
+          "id": "call_4bb216dd598c12bb18e821b6ca1e110f",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "Let me read the relevant section of ndarithmetic.py around lines 485-540.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && sed -n '480,545p' astropy/nddata/mixins/ndarithmetic.py",
+            "tool_call_id": "call_4bb216dd598c12bb18e821b6ca1e110f"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-1197",
+          "created": 1785980572,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && sed -n '480,545p' astropy/nddata/mixins/ndarithmetic.py\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_4bb216dd598c12bb18e821b6ca1e110f",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "Let me read the relevant section of ndarithmetic.py around lines 485-540.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 87,
+            "prompt_tokens": 4294,
+            "total_tokens": 4381,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 1028,
+              "cached_tokens": 3266
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 2025.1,
+            "prefill_tokens": 1028,
+            "prefill_cached_tokens": 3266,
+            "prefill_tok_s": 517.7,
+            "decode_tok_s": 12.2,
+            "tok_per_step": 1.01
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1785980573.0511718
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n            axis_kwarg = dict(axis=kwds[\"axis\"]) if \"axis\" in kwds else dict()\n            return self.uncertainty.propagate(\n                operation, operand, result, correlation, **axis_kwarg\n            )\n\n    def _arithmetic_mask(self, operation, operand, handle_mask, axis=None, **kwds):\n        \"\"\"\n        Calculate the resulting mask.\n\n        This is implemented as the piecewise ``or`` operation if both have a\n        mask.\n\n        Parameters\n        ----------\n        operation : callable\n            see :meth:`NDArithmeticMixin._arithmetic` parameter description.\n            By default, the ``operation`` will be ignored.\n\n        operand : `NDData`-like instance\n            The second operand wrapped in an instance of the same class as\n            self.\n\n        handle_mask : callable\n            see :meth:`NDArithmeticMixin.add`\n\n        kwds :\n            Additional parameters given to ``handle_mask``.\n\n        Returns\n        -------\n        result_mask : any type\n            If only one mask was present this mask is returned.\n            If neither had a mask ``None`` is returned. Otherwise\n            ``handle_mask`` must create (and copy) the returned mask.\n        \"\"\"\n        # If only one mask is present we need not bother about any type checks\n        if (\n            self.mask is None and operand is not None and operand.mask is None\n        ) or handle_mask is None:\n            return None\n        elif self.mask is None and operand is not None:\n            # Make a copy so there is no reference in the result.\n            return deepcopy(operand.mask)\n        elif operand is None:\n            return deepcopy(self.mask)\n        else:\n            # Now lets calculate the resulting mask (operation enforces copy)\n            return handle_mask(self.mask, operand.mask, **kwds)\n\n    def _arithmetic_wcs(self, operation, operand, compare_wcs, **kwds):\n        \"\"\"\n        Calculate the resulting wcs.\n\n        There is actually no calculation involved but it is a good place to\n        compare wcs information of both operands. This is currently not working\n        properly with `~astropy.wcs.WCS` (which is the suggested class for\n        storing as wcs property) but it will not break it neither.\n\n        Parameters\n        ----------\n        operation : callable\n            see :meth:`NDArithmeticMixin._arithmetic` parameter description.\n            By default, the ``operation`` will be ignored.\n\n        operand : `NDData` instance or subclass\n            The second operand wrapped in an instance of the same class as\n</output>",
+      "extra": {
+        "raw_output": "            axis_kwarg = dict(axis=kwds[\"axis\"]) if \"axis\" in kwds else dict()\n            return self.uncertainty.propagate(\n                operation, operand, result, correlation, **axis_kwarg\n            )\n\n    def _arithmetic_mask(self, operation, operand, handle_mask, axis=None, **kwds):\n        \"\"\"\n        Calculate the resulting mask.\n\n        This is implemented as the piecewise ``or`` operation if both have a\n        mask.\n\n        Parameters\n        ----------\n        operation : callable\n            see :meth:`NDArithmeticMixin._arithmetic` parameter description.\n            By default, the ``operation`` will be ignored.\n\n        operand : `NDData`-like instance\n            The second operand wrapped in an instance of the same class as\n            self.\n\n        handle_mask : callable\n            see :meth:`NDArithmeticMixin.add`\n\n        kwds :\n            Additional parameters given to ``handle_mask``.\n\n        Returns\n        -------\n        result_mask : any type\n            If only one mask was present this mask is returned.\n            If neither had a mask ``None`` is returned. Otherwise\n            ``handle_mask`` must create (and copy) the returned mask.\n        \"\"\"\n        # If only one mask is present we need not bother about any type checks\n        if (\n            self.mask is None and operand is not None and operand.mask is None\n        ) or handle_mask is None:\n            return None\n        elif self.mask is None and operand is not None:\n            # Make a copy so there is no reference in the result.\n            return deepcopy(operand.mask)\n        elif operand is None:\n            return deepcopy(self.mask)\n        else:\n            # Now lets calculate the resulting mask (operation enforces copy)\n            return handle_mask(self.mask, operand.mask, **kwds)\n\n    def _arithmetic_wcs(self, operation, operand, compare_wcs, **kwds):\n        \"\"\"\n        Calculate the resulting wcs.\n\n        There is actually no calculation involved but it is a good place to\n        compare wcs information of both operands. This is currently not working\n        properly with `~astropy.wcs.WCS` (which is the suggested class for\n        storing as wcs property) but it will not break it neither.\n\n        Parameters\n        ----------\n        operation : callable\n            see :meth:`NDArithmeticMixin._arithmetic` parameter description.\n            By default, the ``operation`` will be ignored.\n\n        operand : `NDData` instance or subclass\n            The second operand wrapped in an instance of the same class as\n",
+        "returncode": 0,
+        "timestamp": 1785980573.6090076,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_4bb216dd598c12bb18e821b6ca1e110f",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && sed -n '230,360p' astropy/nddata/mixins/ndarithmetic.py\"}",
+            "name": "bash"
+          },
+          "id": "call_245a848b608f707f76e87db5147cd9c0",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "The issue: when self.mask is not None but operand is None (i.e., a constant like 1.), the code goes into `elif operand is None: return deepcopy(self.mask)`. That seems fine.\n\nBut the bug reported: `nref_mask.multiply(1., handle_mask=np.bitwise_or)` fails. operand here is None (constant). So `_arithmetic_mask` should hit `elif operand is None: return deepcopy(self.mask)`.\n\nWait, but maybe the operand isn't None. Let's check how operand is constructed. For scalar constant, operand might be an NDDataRef with data but no mask. Let's look at _arithmetic.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && sed -n '230,360p' astropy/nddata/mixins/ndarithmetic.py",
+            "tool_call_id": "call_245a848b608f707f76e87db5147cd9c0"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-1198",
+          "created": 1785980593,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && sed -n '230,360p' astropy/nddata/mixins/ndarithmetic.py\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_245a848b608f707f76e87db5147cd9c0",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "The issue: when self.mask is not None but operand is None (i.e., a constant like 1.), the code goes into `elif operand is None: return deepcopy(self.mask)`. That seems fine.\n\nBut the bug reported: `nref_mask.multiply(1., handle_mask=np.bitwise_or)` fails. operand here is None (constant). So `_arithmetic_mask` should hit `elif operand is None: return deepcopy(self.mask)`.\n\nWait, but maybe the operand isn't None. Let's check how operand is constructed. For scalar constant, operand might be an NDDataRef with data but no mask. Let's look at _arithmetic.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 212,
+            "prompt_tokens": 4963,
+            "total_tokens": 5175,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 583,
+              "cached_tokens": 4380
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 2300.9,
+            "prefill_tokens": 583,
+            "prefill_cached_tokens": 4380,
+            "prefill_tok_s": 259.5,
+            "decode_tok_s": 11.7,
+            "tok_per_step": 1.0
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1785980593.8922808
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n        kwargs : `dict`\n            The kwargs should contain all the other attributes (besides data\n            and unit) needed to create a new instance for the result. Creating\n            the new instance is up to the calling method, for example\n            :meth:`NDArithmeticMixin.add`.\n\n        \"\"\"\n        # Find the appropriate keywords for the appropriate method (not sure\n        # if data and uncertainty are ever used ...)\n        kwds2 = {\"mask\": {}, \"meta\": {}, \"wcs\": {}, \"data\": {}, \"uncertainty\": {}}\n        for i in kwds:\n            splitted = i.split(\"_\", 1)\n            try:\n                kwds2[splitted[0]][splitted[1]] = kwds[i]\n            except KeyError:\n                raise KeyError(f\"Unknown prefix {splitted[0]} for parameter {i}\")\n\n        kwargs = {}\n\n        # First check that the WCS allows the arithmetic operation\n        if compare_wcs is None:\n            kwargs[\"wcs\"] = None\n        elif compare_wcs in [\"ff\", \"first_found\"]:\n            if self.wcs is None and hasattr(operand, \"wcs\"):\n                kwargs[\"wcs\"] = deepcopy(operand.wcs)\n            else:\n                kwargs[\"wcs\"] = deepcopy(self.wcs)\n        else:\n            kwargs[\"wcs\"] = self._arithmetic_wcs(\n                operation, operand, compare_wcs, **kwds2[\"wcs\"]\n            )\n\n        # collapse operations on masked quantities/arrays which are supported by\n        # the astropy.utils.masked or np.ma modules should use those modules to\n        # do the arithmetic on the data and propagate masks.\n        use_masked_arith = operand is None and self.mask is not None\n        if use_masked_arith:\n            # if we're *including* masked values in the operation,\n            # use the astropy Masked module:\n            if not operation_ignores_mask:\n                # call the numpy operation on a Masked NDDataArray\n                # representation of the nddata, with units when available:\n                if self.unit is not None and not hasattr(self.data, \"unit\"):\n                    masked_input = Masked(self.data << self.unit, mask=self.mask)\n                else:\n                    masked_input = Masked(self.data, mask=self.mask)\n            # if we're *excluding* masked values in the operation,\n            # we use the numpy.ma module:\n            else:\n                masked_input = np.ma.masked_array(self.data, self.mask)\n            result = operation(masked_input, axis=axis)\n            # since result may be e.g. a float if operation is a sum over all axes,\n            # let's ensure that result is a masked array, since we'll assume this later:\n            if not hasattr(result, \"mask\"):\n                result = np.ma.masked_array(\n                    result, mask=np.zeros_like(result, dtype=bool)\n                )\n        else:\n            # Then calculate the resulting data (which can but needs not be a\n            # quantity)\n            result = self._arithmetic_data(\n                operation, operand, axis=axis, **kwds2[\"data\"]\n            )\n\n        # preserve original units\n        if not hasattr(result, \"unit\") and hasattr(self, \"unit\"):\n            kwargs[\"unit\"] = self.unit\n\n        # Determine the other properties\n        if propagate_uncertainties is None:\n            kwargs[\"uncertainty\"] = None\n        elif not propagate_uncertainties:\n            if self.uncertainty is None:\n                kwargs[\"uncertainty\"] = deepcopy(operand.uncertainty)\n            else:\n                kwargs[\"uncertainty\"] = deepcopy(self.uncertainty)\n        else:\n            kwargs[\"uncertainty\"] = self._arithmetic_uncertainty(\n                operation,\n                operand,\n                result,\n                uncertainty_correlation,\n                axis=axis,\n                **kwds2[\"uncertainty\"],\n            )\n\n        # If both are None, there is nothing to do.\n        if self.psf is not None or (operand is not None and operand.psf is not None):\n            warnings.warn(\n                f\"Not setting psf attribute during {operation.__name__}.\",\n                AstropyUserWarning,\n            )\n\n        if handle_mask is None:\n            pass\n        elif hasattr(result, \"mask\"):\n            # if numpy.ma or astropy.utils.masked is being used, the constructor\n            # will pick up the mask from the masked object:\n            kwargs[\"mask\"] = None\n        elif handle_mask in [\"ff\", \"first_found\"]:\n            if self.mask is None:\n                kwargs[\"mask\"] = deepcopy(operand.mask)\n            else:\n                kwargs[\"mask\"] = deepcopy(self.mask)\n        else:\n            kwargs[\"mask\"] = self._arithmetic_mask(\n                operation, operand, handle_mask, axis=axis, **kwds2[\"mask\"]\n            )\n\n        if handle_meta is None:\n            kwargs[\"meta\"] = None\n        elif handle_meta in [\"ff\", \"first_found\"]:\n            if not self.meta:\n                kwargs[\"meta\"] = deepcopy(operand.meta)\n            else:\n                kwargs[\"meta\"] = deepcopy(self.meta)\n        else:\n            kwargs[\"meta\"] = self._arithmetic_meta(\n                operation, operand, handle_meta, **kwds2[\"meta\"]\n            )\n\n        # Wrap the individual results into a new instance of the same class.\n        return result, kwargs\n\n    def _arithmetic_data(self, operation, operand, **kwds):\n        \"\"\"\n        Calculate the resulting data.\n\n        Parameters\n        ----------\n        operation : callable\n</output>",
+      "extra": {
+        "raw_output": "        kwargs : `dict`\n            The kwargs should contain all the other attributes (besides data\n            and unit) needed to create a new instance for the result. Creating\n            the new instance is up to the calling method, for example\n            :meth:`NDArithmeticMixin.add`.\n\n        \"\"\"\n        # Find the appropriate keywords for the appropriate method (not sure\n        # if data and uncertainty are ever used ...)\n        kwds2 = {\"mask\": {}, \"meta\": {}, \"wcs\": {}, \"data\": {}, \"uncertainty\": {}}\n        for i in kwds:\n            splitted = i.split(\"_\", 1)\n            try:\n                kwds2[splitted[0]][splitted[1]] = kwds[i]\n            except KeyError:\n                raise KeyError(f\"Unknown prefix {splitted[0]} for parameter {i}\")\n\n        kwargs = {}\n\n        # First check that the WCS allows the arithmetic operation\n        if compare_wcs is None:\n            kwargs[\"wcs\"] = None\n        elif compare_wcs in [\"ff\", \"first_found\"]:\n            if self.wcs is None and hasattr(operand, \"wcs\"):\n                kwargs[\"wcs\"] = deepcopy(operand.wcs)\n            else:\n                kwargs[\"wcs\"] = deepcopy(self.wcs)\n        else:\n            kwargs[\"wcs\"] = self._arithmetic_wcs(\n                operation, operand, compare_wcs, **kwds2[\"wcs\"]\n            )\n\n        # collapse operations on masked quantities/arrays which are supported by\n        # the astropy.utils.masked or np.ma modules should use those modules to\n        # do the arithmetic on the data and propagate masks.\n        use_masked_arith = operand is None and self.mask is not None\n        if use_masked_arith:\n            # if we're *including* masked values in the operation,\n            # use the astropy Masked module:\n            if not operation_ignores_mask:\n                # call the numpy operation on a Masked NDDataArray\n                # representation of the nddata, with units when available:\n                if self.unit is not None and not hasattr(self.data, \"unit\"):\n                    masked_input = Masked(self.data << self.unit, mask=self.mask)\n                else:\n                    masked_input = Masked(self.data, mask=self.mask)\n            # if we're *excluding* masked values in the operation,\n            # we use the numpy.ma module:\n            else:\n                masked_input = np.ma.masked_array(self.data, self.mask)\n            result = operation(masked_input, axis=axis)\n            # since result may be e.g. a float if operation is a sum over all axes,\n            # let's ensure that result is a masked array, since we'll assume this later:\n            if not hasattr(result, \"mask\"):\n                result = np.ma.masked_array(\n                    result, mask=np.zeros_like(result, dtype=bool)\n                )\n        else:\n            # Then calculate the resulting data (which can but needs not be a\n            # quantity)\n            result = self._arithmetic_data(\n                operation, operand, axis=axis, **kwds2[\"data\"]\n            )\n\n        # preserve original units\n        if not hasattr(result, \"unit\") and hasattr(self, \"unit\"):\n            kwargs[\"unit\"] = self.unit\n\n        # Determine the other properties\n        if propagate_uncertainties is None:\n            kwargs[\"uncertainty\"] = None\n        elif not propagate_uncertainties:\n            if self.uncertainty is None:\n                kwargs[\"uncertainty\"] = deepcopy(operand.uncertainty)\n            else:\n                kwargs[\"uncertainty\"] = deepcopy(self.uncertainty)\n        else:\n            kwargs[\"uncertainty\"] = self._arithmetic_uncertainty(\n                operation,\n                operand,\n                result,\n                uncertainty_correlation,\n                axis=axis,\n                **kwds2[\"uncertainty\"],\n            )\n\n        # If both are None, there is nothing to do.\n        if self.psf is not None or (operand is not None and operand.psf is not None):\n            warnings.warn(\n                f\"Not setting psf attribute during {operation.__name__}.\",\n                AstropyUserWarning,\n            )\n\n        if handle_mask is None:\n            pass\n        elif hasattr(result, \"mask\"):\n            # if numpy.ma or astropy.utils.masked is being used, the constructor\n            # will pick up the mask from the masked object:\n            kwargs[\"mask\"] = None\n        elif handle_mask in [\"ff\", \"first_found\"]:\n            if self.mask is None:\n                kwargs[\"mask\"] = deepcopy(operand.mask)\n            else:\n                kwargs[\"mask\"] = deepcopy(self.mask)\n        else:\n            kwargs[\"mask\"] = self._arithmetic_mask(\n                operation, operand, handle_mask, axis=axis, **kwds2[\"mask\"]\n            )\n\n        if handle_meta is None:\n            kwargs[\"meta\"] = None\n        elif handle_meta in [\"ff\", \"first_found\"]:\n            if not self.meta:\n                kwargs[\"meta\"] = deepcopy(operand.meta)\n            else:\n                kwargs[\"meta\"] = deepcopy(self.meta)\n        else:\n            kwargs[\"meta\"] = self._arithmetic_meta(\n                operation, operand, handle_meta, **kwds2[\"meta\"]\n            )\n\n        # Wrap the individual results into a new instance of the same class.\n        return result, kwargs\n\n    def _arithmetic_data(self, operation, operand, **kwds):\n        \"\"\"\n        Calculate the resulting data.\n\n        Parameters\n        ----------\n        operation : callable\n",
+        "returncode": 0,
+        "timestamp": 1785980594.58472,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_245a848b608f707f76e87db5147cd9c0",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && sed -n '1,230p' astropy/nddata/mixins/ndarithmetic.py\"}",
+            "name": "bash"
+          },
+          "id": "call_5bbdcc22b9bab054b33aa8c4a0724614",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "The issue: when handle_mask is np.bitwise_or and operand is None (constant), `_arithmetic_mask` is called with operand=None. Wait, but in the code path at line 335, `kwargs[\"mask\"] = self._arithmetic_mask(operation, operand, handle_mask, ...)`. operand here is None for constant. So `_arithmetic_mask` returns deepcopy(self.mask) in `elif operand is None` branch. That should work.\n\nBut wait, maybe operand isn't None. Let's check how multiply with a constant works. Let's look at multiply method.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && sed -n '1,230p' astropy/nddata/mixins/ndarithmetic.py",
+            "tool_call_id": "call_5bbdcc22b9bab054b33aa8c4a0724614"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-1200",
+          "created": 1785980613,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && sed -n '1,230p' astropy/nddata/mixins/ndarithmetic.py\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_5bbdcc22b9bab054b33aa8c4a0724614",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "The issue: when handle_mask is np.bitwise_or and operand is None (constant), `_arithmetic_mask` is called with operand=None. Wait, but in the code path at line 335, `kwargs[\"mask\"] = self._arithmetic_mask(operation, operand, handle_mask, ...)`. operand here is None for constant. So `_arithmetic_mask` returns deepcopy(self.mask) in `elif operand is None` branch. That should work.\n\nBut wait, maybe operand isn't None. Let's check how multiply with a constant works. Let's look at multiply method.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 194,
+            "prompt_tokens": 6425,
+            "total_tokens": 6619,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 1251,
+              "cached_tokens": 5174
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 2223.1,
+            "prefill_tokens": 1251,
+            "prefill_cached_tokens": 5174,
+            "prefill_tok_s": 577.9,
+            "decode_tok_s": 11.3,
+            "tok_per_step": 1.01
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1785980614.1811976
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n# Licensed under a 3-clause BSD style license - see LICENSE.rst\n# This module implements the Arithmetic mixin to the NDData class.\n\nimport warnings\nfrom copy import deepcopy\n\nimport numpy as np\n\nfrom astropy.nddata.nduncertainty import NDUncertainty\nfrom astropy.units import dimensionless_unscaled\nfrom astropy.utils import format_doc, sharedmethod\nfrom astropy.utils.exceptions import AstropyUserWarning\nfrom astropy.utils.masked import Masked\n\n__all__ = [\"NDArithmeticMixin\"]\n\n# Global so it doesn't pollute the class dict unnecessarily:\n\n# Docstring templates for add, subtract, multiply, divide methods.\n_arit_doc = \"\"\"\n    Performs {name} by evaluating ``self`` {op} ``operand``.\n\n    Parameters\n    ----------\n    operand, operand2 : `NDData`-like instance\n        If ``operand2`` is ``None`` or not given it will perform the operation\n        ``self`` {op} ``operand``.\n        If ``operand2`` is given it will perform ``operand`` {op} ``operand2``.\n        If the method was called on a class rather than on the instance\n        ``operand2`` must be given.\n\n    propagate_uncertainties : `bool` or ``None``, optional\n        If ``None`` the result will have no uncertainty. If ``False`` the\n        result will have a copied version of the first operand that has an\n        uncertainty. If ``True`` the result will have a correctly propagated\n        uncertainty from the uncertainties of the operands but this assumes\n        that the uncertainties are `NDUncertainty`-like. Default is ``True``.\n\n        .. versionchanged:: 1.2\n            This parameter must be given as keyword-parameter. Using it as\n            positional parameter is deprecated.\n            ``None`` was added as valid parameter value.\n\n    handle_mask : callable, ``'first_found'`` or ``None``, optional\n        If ``None`` the result will have no mask. If ``'first_found'`` the\n        result will have a copied version of the first operand that has a\n        mask). If it is a callable then the specified callable must\n        create the results ``mask`` and if necessary provide a copy.\n        Default is `numpy.logical_or`.\n\n        .. versionadded:: 1.2\n\n    handle_meta : callable, ``'first_found'`` or ``None``, optional\n        If ``None`` the result will have no meta. If ``'first_found'`` the\n        result will have a copied version of the first operand that has a\n        (not empty) meta. If it is a callable then the specified callable must\n        create the results ``meta`` and if necessary provide a copy.\n        Default is ``None``.\n\n        .. versionadded:: 1.2\n\n    compare_wcs : callable, ``'first_found'`` or ``None``, optional\n        If ``None`` the result will have no wcs and no comparison between\n        the wcs of the operands is made. If ``'first_found'`` the\n        result will have a copied version of the first operand that has a\n        wcs. If it is a callable then the specified callable must\n        compare the ``wcs``. The resulting ``wcs`` will be like if ``False``\n        was given otherwise it raises a ``ValueError`` if the comparison was\n        not successful. Default is ``'first_found'``.\n\n        .. versionadded:: 1.2\n\n    uncertainty_correlation : number or `~numpy.ndarray`, optional\n        The correlation between the two operands is used for correct error\n        propagation for correlated data as given in:\n        https://en.wikipedia.org/wiki/Propagation_of_uncertainty#Example_formulas\n        Default is 0.\n\n        .. versionadded:: 1.2\n\n\n    kwargs :\n        Any other parameter that should be passed to the callables used.\n\n    Returns\n    -------\n    result : `~astropy.nddata.NDData`-like\n        The resulting dataset\n\n    Notes\n    -----\n    If a ``callable`` is used for ``mask``, ``wcs`` or ``meta`` the\n    callable must accept the corresponding attributes as first two\n    parameters. If the callable also needs additional parameters these can be\n    defined as ``kwargs`` and must start with ``\"wcs_\"`` (for wcs callable) or\n    ``\"meta_\"`` (for meta callable). This startstring is removed before the\n    callable is called.\n\n    ``\"first_found\"`` can also be abbreviated with ``\"ff\"``.\n    \"\"\"\n\n\nclass NDArithmeticMixin:\n    \"\"\"\n    Mixin class to add arithmetic to an NDData object.\n\n    When subclassing, be sure to list the superclasses in the correct order\n    so that the subclass sees NDData as the main superclass. See\n    `~astropy.nddata.NDDataArray` for an example.\n\n    Notes\n    -----\n    This class only aims at covering the most common cases so there are certain\n    restrictions on the saved attributes::\n\n        - ``uncertainty`` : has to be something that has a `NDUncertainty`-like\n          interface for uncertainty propagation\n        - ``mask`` : has to be something that can be used by a bitwise ``or``\n          operation.\n        - ``wcs`` : has to implement a way of comparing with ``=`` to allow\n          the operation.\n\n    But there is a workaround that allows to disable handling a specific\n    attribute and to simply set the results attribute to ``None`` or to\n    copy the existing attribute (and neglecting the other).\n    For example for uncertainties not representing an `NDUncertainty`-like\n    interface you can alter the ``propagate_uncertainties`` parameter in\n    :meth:`NDArithmeticMixin.add`. ``None`` means that the result will have no\n    uncertainty, ``False`` means it takes the uncertainty of the first operand\n    (if this does not exist from the second operand) as the result's\n    uncertainty. This behavior is also explained in the docstring for the\n    different arithmetic operations.\n\n    Decomposing the units is not attempted, mainly due to the internal mechanics\n    of `~astropy.units.Quantity`, so the resulting data might have units like\n    ``km/m`` if you divided for example 100km by 5m. So this Mixin has adopted\n    this behavior.\n\n    Examples\n    --------\n    Using this Mixin with `~astropy.nddata.NDData`:\n\n        >>> from astropy.nddata import NDData, NDArithmeticMixin\n        >>> class NDDataWithMath(NDArithmeticMixin, NDData):\n        ...     pass\n\n    Using it with one operand on an instance::\n\n        >>> ndd = NDDataWithMath(100)\n        >>> ndd.add(20)\n        NDDataWithMath(120)\n\n    Using it with two operand on an instance::\n\n        >>> ndd = NDDataWithMath(-4)\n        >>> ndd.divide(1, ndd)\n        NDDataWithMath(-0.25)\n\n    Using it as classmethod requires two operands::\n\n        >>> NDDataWithMath.subtract(5, 4)\n        NDDataWithMath(1)\n\n    \"\"\"\n\n    def _arithmetic(\n        self,\n        operation,\n        operand,\n        propagate_uncertainties=True,\n        handle_mask=np.logical_or,\n        handle_meta=None,\n        uncertainty_correlation=0,\n        compare_wcs=\"first_found\",\n        operation_ignores_mask=False,\n        axis=None,\n        **kwds,\n    ):\n        \"\"\"\n        Base method which calculates the result of the arithmetic operation.\n\n        This method determines the result of the arithmetic operation on the\n        ``data`` including their units and then forwards to other methods\n        to calculate the other properties for the result (like uncertainty).\n\n        Parameters\n        ----------\n        operation : callable\n            The operation that is performed on the `NDData`. Supported are\n            `numpy.add`, `numpy.subtract`, `numpy.multiply` and\n            `numpy.true_divide`.\n\n        operand : same type (class) as self\n            see :meth:`NDArithmeticMixin.add`\n\n        propagate_uncertainties : `bool` or ``None``, optional\n            see :meth:`NDArithmeticMixin.add`\n\n        handle_mask : callable, ``'first_found'`` or ``None``, optional\n            see :meth:`NDArithmeticMixin.add`\n\n        handle_meta : callable, ``'first_found'`` or ``None``, optional\n            see :meth:`NDArithmeticMixin.add`\n\n        compare_wcs : callable, ``'first_found'`` or ``None``, optional\n            see :meth:`NDArithmeticMixin.add`\n\n        uncertainty_correlation : ``Number`` or `~numpy.ndarray`, optional\n            see :meth:`NDArithmeticMixin.add`\n\n        operation_ignores_mask : bool, optional\n            When True, masked values will be excluded from operations;\n            otherwise the operation will be performed on all values,\n            including masked ones.\n\n        axis : int or tuple of ints, optional\n            axis or axes over which to perform collapse operations like min, max, sum or mean.\n\n        kwargs :\n            Any other parameter that should be passed to the\n            different :meth:`NDArithmeticMixin._arithmetic_mask` (or wcs, ...)\n            methods.\n\n        Returns\n        -------\n        result : ndarray or `~astropy.units.Quantity`\n            The resulting data as array (in case both operands were without\n            unit) or as quantity if at least one had a unit.\n\n        kwargs : `dict`\n</output>",
+      "extra": {
+        "raw_output": "# Licensed under a 3-clause BSD style license - see LICENSE.rst\n# This module implements the Arithmetic mixin to the NDData class.\n\nimport warnings\nfrom copy import deepcopy\n\nimport numpy as np\n\nfrom astropy.nddata.nduncertainty import NDUncertainty\nfrom astropy.units import dimensionless_unscaled\nfrom astropy.utils import format_doc, sharedmethod\nfrom astropy.utils.exceptions import AstropyUserWarning\nfrom astropy.utils.masked import Masked\n\n__all__ = [\"NDArithmeticMixin\"]\n\n# Global so it doesn't pollute the class dict unnecessarily:\n\n# Docstring templates for add, subtract, multiply, divide methods.\n_arit_doc = \"\"\"\n    Performs {name} by evaluating ``self`` {op} ``operand``.\n\n    Parameters\n    ----------\n    operand, operand2 : `NDData`-like instance\n        If ``operand2`` is ``None`` or not given it will perform the operation\n        ``self`` {op} ``operand``.\n        If ``operand2`` is given it will perform ``operand`` {op} ``operand2``.\n        If the method was called on a class rather than on the instance\n        ``operand2`` must be given.\n\n    propagate_uncertainties : `bool` or ``None``, optional\n        If ``None`` the result will have no uncertainty. If ``False`` the\n        result will have a copied version of the first operand that has an\n        uncertainty. If ``True`` the result will have a correctly propagated\n        uncertainty from the uncertainties of the operands but this assumes\n        that the uncertainties are `NDUncertainty`-like. Default is ``True``.\n\n        .. versionchanged:: 1.2\n            This parameter must be given as keyword-parameter. Using it as\n            positional parameter is deprecated.\n            ``None`` was added as valid parameter value.\n\n    handle_mask : callable, ``'first_found'`` or ``None``, optional\n        If ``None`` the result will have no mask. If ``'first_found'`` the\n        result will have a copied version of the first operand that has a\n        mask). If it is a callable then the specified callable must\n        create the results ``mask`` and if necessary provide a copy.\n        Default is `numpy.logical_or`.\n\n        .. versionadded:: 1.2\n\n    handle_meta : callable, ``'first_found'`` or ``None``, optional\n        If ``None`` the result will have no meta. If ``'first_found'`` the\n        result will have a copied version of the first operand that has a\n        (not empty) meta. If it is a callable then the specified callable must\n        create the results ``meta`` and if necessary provide a copy.\n        Default is ``None``.\n\n        .. versionadded:: 1.2\n\n    compare_wcs : callable, ``'first_found'`` or ``None``, optional\n        If ``None`` the result will have no wcs and no comparison between\n        the wcs of the operands is made. If ``'first_found'`` the\n        result will have a copied version of the first operand that has a\n        wcs. If it is a callable then the specified callable must\n        compare the ``wcs``. The resulting ``wcs`` will be like if ``False``\n        was given otherwise it raises a ``ValueError`` if the comparison was\n        not successful. Default is ``'first_found'``.\n\n        .. versionadded:: 1.2\n\n    uncertainty_correlation : number or `~numpy.ndarray`, optional\n        The correlation between the two operands is used for correct error\n        propagation for correlated data as given in:\n        https://en.wikipedia.org/wiki/Propagation_of_uncertainty#Example_formulas\n        Default is 0.\n\n        .. versionadded:: 1.2\n\n\n    kwargs :\n        Any other parameter that should be passed to the callables used.\n\n    Returns\n    -------\n    result : `~astropy.nddata.NDData`-like\n        The resulting dataset\n\n    Notes\n    -----\n    If a ``callable`` is used for ``mask``, ``wcs`` or ``meta`` the\n    callable must accept the corresponding attributes as first two\n    parameters. If the callable also needs additional parameters these can be\n    defined as ``kwargs`` and must start with ``\"wcs_\"`` (for wcs callable) or\n    ``\"meta_\"`` (for meta callable). This startstring is removed before the\n    callable is called.\n\n    ``\"first_found\"`` can also be abbreviated with ``\"ff\"``.\n    \"\"\"\n\n\nclass NDArithmeticMixin:\n    \"\"\"\n    Mixin class to add arithmetic to an NDData object.\n\n    When subclassing, be sure to list the superclasses in the correct order\n    so that the subclass sees NDData as the main superclass. See\n    `~astropy.nddata.NDDataArray` for an example.\n\n    Notes\n    -----\n    This class only aims at covering the most common cases so there are certain\n    restrictions on the saved attributes::\n\n        - ``uncertainty`` : has to be something that has a `NDUncertainty`-like\n          interface for uncertainty propagation\n        - ``mask`` : has to be something that can be used by a bitwise ``or``\n          operation.\n        - ``wcs`` : has to implement a way of comparing with ``=`` to allow\n          the operation.\n\n    But there is a workaround that allows to disable handling a specific\n    attribute and to simply set the results attribute to ``None`` or to\n    copy the existing attribute (and neglecting the other).\n    For example for uncertainties not representing an `NDUncertainty`-like\n    interface you can alter the ``propagate_uncertainties`` parameter in\n    :meth:`NDArithmeticMixin.add`. ``None`` means that the result will have no\n    uncertainty, ``False`` means it takes the uncertainty of the first operand\n    (if this does not exist from the second operand) as the result's\n    uncertainty. This behavior is also explained in the docstring for the\n    different arithmetic operations.\n\n    Decomposing the units is not attempted, mainly due to the internal mechanics\n    of `~astropy.units.Quantity`, so the resulting data might have units like\n    ``km/m`` if you divided for example 100km by 5m. So this Mixin has adopted\n    this behavior.\n\n    Examples\n    --------\n    Using this Mixin with `~astropy.nddata.NDData`:\n\n        >>> from astropy.nddata import NDData, NDArithmeticMixin\n        >>> class NDDataWithMath(NDArithmeticMixin, NDData):\n        ...     pass\n\n    Using it with one operand on an instance::\n\n        >>> ndd = NDDataWithMath(100)\n        >>> ndd.add(20)\n        NDDataWithMath(120)\n\n    Using it with two operand on an instance::\n\n        >>> ndd = NDDataWithMath(-4)\n        >>> ndd.divide(1, ndd)\n        NDDataWithMath(-0.25)\n\n    Using it as classmethod requires two operands::\n\n        >>> NDDataWithMath.subtract(5, 4)\n        NDDataWithMath(1)\n\n    \"\"\"\n\n    def _arithmetic(\n        self,\n        operation,\n        operand,\n        propagate_uncertainties=True,\n        handle_mask=np.logical_or,\n        handle_meta=None,\n        uncertainty_correlation=0,\n        compare_wcs=\"first_found\",\n        operation_ignores_mask=False,\n        axis=None,\n        **kwds,\n    ):\n        \"\"\"\n        Base method which calculates the result of the arithmetic operation.\n\n        This method determines the result of the arithmetic operation on the\n        ``data`` including their units and then forwards to other methods\n        to calculate the other properties for the result (like uncertainty).\n\n        Parameters\n        ----------\n        operation : callable\n            The operation that is performed on the `NDData`. Supported are\n            `numpy.add`, `numpy.subtract`, `numpy.multiply` and\n            `numpy.true_divide`.\n\n        operand : same type (class) as self\n            see :meth:`NDArithmeticMixin.add`\n\n        propagate_uncertainties : `bool` or ``None``, optional\n            see :meth:`NDArithmeticMixin.add`\n\n        handle_mask : callable, ``'first_found'`` or ``None``, optional\n            see :meth:`NDArithmeticMixin.add`\n\n        handle_meta : callable, ``'first_found'`` or ``None``, optional\n            see :meth:`NDArithmeticMixin.add`\n\n        compare_wcs : callable, ``'first_found'`` or ``None``, optional\n            see :meth:`NDArithmeticMixin.add`\n\n        uncertainty_correlation : ``Number`` or `~numpy.ndarray`, optional\n            see :meth:`NDArithmeticMixin.add`\n\n        operation_ignores_mask : bool, optional\n            When True, masked values will be excluded from operations;\n            otherwise the operation will be performed on all values,\n            including masked ones.\n\n        axis : int or tuple of ints, optional\n            axis or axes over which to perform collapse operations like min, max, sum or mean.\n\n        kwargs :\n            Any other parameter that should be passed to the\n            different :meth:`NDArithmeticMixin._arithmetic_mask` (or wcs, ...)\n            methods.\n\n        Returns\n        -------\n        result : ndarray or `~astropy.units.Quantity`\n            The resulting data as array (in case both operands were without\n            unit) or as quantity if at least one had a unit.\n\n        kwargs : `dict`\n",
+        "returncode": 0,
+        "timestamp": 1785980614.7454069,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_5bbdcc22b9bab054b33aa8c4a0724614",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && python -c \\\"import astropy; print(astropy.__version__)\\\"\"}",
+            "name": "bash"
+          },
+          "id": "call_275b0c7ed451aee7ef111725b009a173",
+          "type": "function"
+        },
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && python -c \\\"\\nimport numpy as np\\nfrom astropy.nddata import NDDataRef\\n\\narray = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])\\nmask = np.array([[0, 1, 64], [8, 0, 1], [2, 1, 0]])\\n\\nnref_nomask = NDDataRef(array)\\nnref_mask = NDDataRef(array, mask=mask)\\n\\nprint('mask * constant:', nref_mask.multiply(1., handle_mask=np.bitwise_or).mask)\\n\\\"\"}",
+            "name": "bash"
+          },
+          "id": "call_19b68be903fb65ff8ff2650f8aa2d452",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "The bug is reported against v5.3 but we're in the current testbed which is likely a newer version. We need to reproduce. Let's first check the version in the testbed, and try reproducing.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && python -c \"import astropy; print(astropy.__version__)\"",
+            "tool_call_id": "call_275b0c7ed451aee7ef111725b009a173"
+          },
+          {
+            "command": "cd /testbed && python -c \"\nimport numpy as np\nfrom astropy.nddata import NDDataRef\n\narray = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])\nmask = np.array([[0, 1, 64], [8, 0, 1], [2, 1, 0]])\n\nnref_nomask = NDDataRef(array)\nnref_mask = NDDataRef(array, mask=mask)\n\nprint('mask * constant:', nref_mask.multiply(1., handle_mask=np.bitwise_or).mask)\n\"",
+            "tool_call_id": "call_19b68be903fb65ff8ff2650f8aa2d452"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-1203",
+          "created": 1785980647,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && python -c \\\"import astropy; print(astropy.__version__)\\\"\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_275b0c7ed451aee7ef111725b009a173",
+                    "type": "function"
+                  },
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && python -c \\\"\\nimport numpy as np\\nfrom astropy.nddata import NDDataRef\\n\\narray = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])\\nmask = np.array([[0, 1, 64], [8, 0, 1], [2, 1, 0]])\\n\\nnref_nomask = NDDataRef(array)\\nnref_mask = NDDataRef(array, mask=mask)\\n\\nprint('mask * constant:', nref_mask.multiply(1., handle_mask=np.bitwise_or).mask)\\n\\\"\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_19b68be903fb65ff8ff2650f8aa2d452",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "The bug is reported against v5.3 but we're in the current testbed which is likely a newer version. We need to reproduce. Let's first check the version in the testbed, and try reproducing.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 271,
+            "prompt_tokens": 8788,
+            "total_tokens": 9059,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 2170,
+              "cached_tokens": 6618
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 6480.7,
+            "prefill_tokens": 2170,
+            "prefill_cached_tokens": 6618,
+            "prefill_tok_s": 337.6,
+            "decode_tok_s": 10.1,
+            "tok_per_step": 1.0
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1785980648.028235
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n6.0.dev328+gb16c7d12c.d20250910\n</output>",
+      "extra": {
+        "raw_output": "6.0.dev328+gb16c7d12c.d20250910\n",
+        "returncode": 0,
+        "timestamp": 1785980653.0939379,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_275b0c7ed451aee7ef111725b009a173",
+      "role": "tool"
+    },
+    {
+      "content": "<returncode>1</returncode>\n<output>\nTraceback (most recent call last):\n  File \"<string>\", line 11, in <module>\n  File \"/testbed/astropy/nddata/mixins/ndarithmetic.py\", line 618, in multiply\n    return self._prepare_then_do_arithmetic(\n  File \"/testbed/astropy/nddata/mixins/ndarithmetic.py\", line 731, in _prepare_then_do_arithmetic\n    result, init_kwds = operand._arithmetic(operation, operand2, **kwargs)\n  File \"/testbed/astropy/nddata/mixins/ndarithmetic.py\", line 335, in _arithmetic\n    kwargs[\"mask\"] = self._arithmetic_mask(\n  File \"/testbed/astropy/nddata/mixins/ndarithmetic.py\", line 527, in _arithmetic_mask\n    return handle_mask(self.mask, operand.mask, **kwds)\nTypeError: unsupported operand type(s) for |: 'int' and 'NoneType'\n</output>",
+      "extra": {
+        "raw_output": "Traceback (most recent call last):\n  File \"<string>\", line 11, in <module>\n  File \"/testbed/astropy/nddata/mixins/ndarithmetic.py\", line 618, in multiply\n    return self._prepare_then_do_arithmetic(\n  File \"/testbed/astropy/nddata/mixins/ndarithmetic.py\", line 731, in _prepare_then_do_arithmetic\n    result, init_kwds = operand._arithmetic(operation, operand2, **kwargs)\n  File \"/testbed/astropy/nddata/mixins/ndarithmetic.py\", line 335, in _arithmetic\n    kwargs[\"mask\"] = self._arithmetic_mask(\n  File \"/testbed/astropy/nddata/mixins/ndarithmetic.py\", line 527, in _arithmetic_mask\n    return handle_mask(self.mask, operand.mask, **kwds)\nTypeError: unsupported operand type(s) for |: 'int' and 'NoneType'\n",
+        "returncode": 1,
+        "timestamp": 1785980653.0993736,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_19b68be903fb65ff8ff2650f8aa2d452",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && sed -n '580,745p' astropy/nddata/mixins/ndarithmetic.py\"}",
+            "name": "bash"
+          },
+          "id": "call_b71eb8c8b5fece00939722c2dde117f4",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "Reproduced. Now let's understand. When multiply with constant, operand is None? Let's trace _prepare_then_do_arithmetic.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && sed -n '580,745p' astropy/nddata/mixins/ndarithmetic.py",
+            "tool_call_id": "call_b71eb8c8b5fece00939722c2dde117f4"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-1204",
+          "created": 1785980661,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && sed -n '580,745p' astropy/nddata/mixins/ndarithmetic.py\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_b71eb8c8b5fece00939722c2dde117f4",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "Reproduced. Now let's understand. When multiply with constant, operand is None? Let's trace _prepare_then_do_arithmetic.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 99,
+            "prompt_tokens": 9347,
+            "total_tokens": 9446,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 289,
+              "cached_tokens": 9058
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 738.4,
+            "prefill_tokens": 289,
+            "prefill_cached_tokens": 9058,
+            "prefill_tok_s": 397.5,
+            "decode_tok_s": 12.0,
+            "tok_per_step": 1.01
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1785980662.0383875
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n        ----------\n        operation : callable\n            see :meth:`NDArithmeticMixin._arithmetic` parameter description.\n            By default, the ``operation`` will be ignored.\n\n        operand : `NDData`-like instance\n            The second operand wrapped in an instance of the same class as\n            self.\n\n        handle_meta : callable\n            see :meth:`NDArithmeticMixin.add`\n\n        kwds :\n            Additional parameters given to ``handle_meta``.\n\n        Returns\n        -------\n        result_meta : any type\n            The result of ``handle_meta``.\n        \"\"\"\n        # Just return what handle_meta does with both of the metas.\n        return handle_meta(self.meta, operand.meta, **kwds)\n\n    @sharedmethod\n    @format_doc(_arit_doc, name=\"addition\", op=\"+\")\n    def add(self, operand, operand2=None, **kwargs):\n        return self._prepare_then_do_arithmetic(np.add, operand, operand2, **kwargs)\n\n    @sharedmethod\n    @format_doc(_arit_doc, name=\"subtraction\", op=\"-\")\n    def subtract(self, operand, operand2=None, **kwargs):\n        return self._prepare_then_do_arithmetic(\n            np.subtract, operand, operand2, **kwargs\n        )\n\n    @sharedmethod\n    @format_doc(_arit_doc, name=\"multiplication\", op=\"*\")\n    def multiply(self, operand, operand2=None, **kwargs):\n        return self._prepare_then_do_arithmetic(\n            np.multiply, operand, operand2, **kwargs\n        )\n\n    @sharedmethod\n    @format_doc(_arit_doc, name=\"division\", op=\"/\")\n    def divide(self, operand, operand2=None, **kwargs):\n        return self._prepare_then_do_arithmetic(\n            np.true_divide, operand, operand2, **kwargs\n        )\n\n    @sharedmethod\n    def sum(self, **kwargs):\n        return self._prepare_then_do_arithmetic(np.sum, **kwargs)\n\n    @sharedmethod\n    def mean(self, **kwargs):\n        return self._prepare_then_do_arithmetic(np.mean, **kwargs)\n\n    @sharedmethod\n    def min(self, **kwargs):\n        # use the provided propagate_uncertainties if available, otherwise default is False:\n        propagate_uncertainties = kwargs.pop(\"propagate_uncertainties\", None)\n        return self._prepare_then_do_arithmetic(\n            np.min, propagate_uncertainties=propagate_uncertainties, **kwargs\n        )\n\n    @sharedmethod\n    def max(self, **kwargs):\n        # use the provided propagate_uncertainties if available, otherwise default is False:\n        propagate_uncertainties = kwargs.pop(\"propagate_uncertainties\", None)\n        return self._prepare_then_do_arithmetic(\n            np.max, propagate_uncertainties=propagate_uncertainties, **kwargs\n        )\n\n    @sharedmethod\n    def _prepare_then_do_arithmetic(\n        self_or_cls, operation, operand=None, operand2=None, **kwargs\n    ):\n        \"\"\"Intermediate method called by public arithmetic (i.e. ``add``)\n        before the processing method (``_arithmetic``) is invoked.\n\n        .. warning::\n            Do not override this method in subclasses.\n\n        This method checks if it was called as instance or as class method and\n        then wraps the operands and the result from ``_arithmetic`` in the\n        appropriate subclass.\n\n        Parameters\n        ----------\n        self_or_cls : instance or class\n            ``sharedmethod`` behaves like a normal method if called on the\n            instance (then this parameter is ``self``) but like a classmethod\n            when called on the class (then this parameter is ``cls``).\n\n        operations : callable\n            The operation (normally a numpy-ufunc) that represents the\n            appropriate action.\n\n        operand, operand2, kwargs :\n            See for example ``add``.\n\n        Result\n        ------\n        result : `~astropy.nddata.NDData`-like\n            Depending how this method was called either ``self_or_cls``\n            (called on class) or ``self_or_cls.__class__`` (called on instance)\n            is the NDData-subclass that is used as wrapper for the result.\n        \"\"\"\n        # DO NOT OVERRIDE THIS METHOD IN SUBCLASSES.\n\n        if isinstance(self_or_cls, NDArithmeticMixin):\n            # True means it was called on the instance, so self_or_cls is\n            # a reference to self\n            cls = self_or_cls.__class__\n            if operand2 is None:\n                # Only one operand was given. Set operand2 to operand and\n                # operand to self so that we call the appropriate method of the\n                # operand.\n                operand2 = operand\n                operand = self_or_cls\n            else:\n                # Convert the first operand to the class of this method.\n                # This is important so that always the correct _arithmetics is\n                # called later that method.\n                operand = cls(operand)\n\n        else:\n            # It was used as classmethod so self_or_cls represents the cls\n            cls = self_or_cls\n\n            # It was called on the class so we expect two operands!\n            if operand2 is None:\n                raise TypeError(\n                    \"operand2 must be given when the method isn't \"\n                    \"called on an instance.\"\n                )\n\n            # Convert to this class. See above comment why.\n            operand = cls(operand)\n\n        # At this point operand, operand2, kwargs and cls are determined.\n        if operand2 is not None and not issubclass(\n            operand2.__class__, NDArithmeticMixin\n        ):\n            # Let's try to convert operand2 to the class of operand to allow for\n            # arithmetic operations with numbers, lists, numpy arrays, numpy masked\n            # arrays, astropy quantities, masked quantities and of other subclasses\n            # of NDData.\n            operand2 = cls(operand2)\n\n            # Now call the _arithmetics method to do the arithmetic.\n            result, init_kwds = operand._arithmetic(operation, operand2, **kwargs)\n        elif issubclass(operand2.__class__, NDArithmeticMixin):\n            # calling as class method:\n            result, init_kwds = cls._arithmetic(\n                operand,\n                operation,\n                operand2,\n                **kwargs,\n            )\n        else:\n            # otherwise call the _arithmetic method on self for a collapse operation:\n            # for collapse operations, use astropy.utils.masked rather than handle_mask\n            result, init_kwds = self_or_cls._arithmetic(\n                operation,\n                operand2,\n</output>",
+      "extra": {
+        "raw_output": "        ----------\n        operation : callable\n            see :meth:`NDArithmeticMixin._arithmetic` parameter description.\n            By default, the ``operation`` will be ignored.\n\n        operand : `NDData`-like instance\n            The second operand wrapped in an instance of the same class as\n            self.\n\n        handle_meta : callable\n            see :meth:`NDArithmeticMixin.add`\n\n        kwds :\n            Additional parameters given to ``handle_meta``.\n\n        Returns\n        -------\n        result_meta : any type\n            The result of ``handle_meta``.\n        \"\"\"\n        # Just return what handle_meta does with both of the metas.\n        return handle_meta(self.meta, operand.meta, **kwds)\n\n    @sharedmethod\n    @format_doc(_arit_doc, name=\"addition\", op=\"+\")\n    def add(self, operand, operand2=None, **kwargs):\n        return self._prepare_then_do_arithmetic(np.add, operand, operand2, **kwargs)\n\n    @sharedmethod\n    @format_doc(_arit_doc, name=\"subtraction\", op=\"-\")\n    def subtract(self, operand, operand2=None, **kwargs):\n        return self._prepare_then_do_arithmetic(\n            np.subtract, operand, operand2, **kwargs\n        )\n\n    @sharedmethod\n    @format_doc(_arit_doc, name=\"multiplication\", op=\"*\")\n    def multiply(self, operand, operand2=None, **kwargs):\n        return self._prepare_then_do_arithmetic(\n            np.multiply, operand, operand2, **kwargs\n        )\n\n    @sharedmethod\n    @format_doc(_arit_doc, name=\"division\", op=\"/\")\n    def divide(self, operand, operand2=None, **kwargs):\n        return self._prepare_then_do_arithmetic(\n            np.true_divide, operand, operand2, **kwargs\n        )\n\n    @sharedmethod\n    def sum(self, **kwargs):\n        return self._prepare_then_do_arithmetic(np.sum, **kwargs)\n\n    @sharedmethod\n    def mean(self, **kwargs):\n        return self._prepare_then_do_arithmetic(np.mean, **kwargs)\n\n    @sharedmethod\n    def min(self, **kwargs):\n        # use the provided propagate_uncertainties if available, otherwise default is False:\n        propagate_uncertainties = kwargs.pop(\"propagate_uncertainties\", None)\n        return self._prepare_then_do_arithmetic(\n            np.min, propagate_uncertainties=propagate_uncertainties, **kwargs\n        )\n\n    @sharedmethod\n    def max(self, **kwargs):\n        # use the provided propagate_uncertainties if available, otherwise default is False:\n        propagate_uncertainties = kwargs.pop(\"propagate_uncertainties\", None)\n        return self._prepare_then_do_arithmetic(\n            np.max, propagate_uncertainties=propagate_uncertainties, **kwargs\n        )\n\n    @sharedmethod\n    def _prepare_then_do_arithmetic(\n        self_or_cls, operation, operand=None, operand2=None, **kwargs\n    ):\n        \"\"\"Intermediate method called by public arithmetic (i.e. ``add``)\n        before the processing method (``_arithmetic``) is invoked.\n\n        .. warning::\n            Do not override this method in subclasses.\n\n        This method checks if it was called as instance or as class method and\n        then wraps the operands and the result from ``_arithmetic`` in the\n        appropriate subclass.\n\n        Parameters\n        ----------\n        self_or_cls : instance or class\n            ``sharedmethod`` behaves like a normal method if called on the\n            instance (then this parameter is ``self``) but like a classmethod\n            when called on the class (then this parameter is ``cls``).\n\n        operations : callable\n            The operation (normally a numpy-ufunc) that represents the\n            appropriate action.\n\n        operand, operand2, kwargs :\n            See for example ``add``.\n\n        Result\n        ------\n        result : `~astropy.nddata.NDData`-like\n            Depending how this method was called either ``self_or_cls``\n            (called on class) or ``self_or_cls.__class__`` (called on instance)\n            is the NDData-subclass that is used as wrapper for the result.\n        \"\"\"\n        # DO NOT OVERRIDE THIS METHOD IN SUBCLASSES.\n\n        if isinstance(self_or_cls, NDArithmeticMixin):\n            # True means it was called on the instance, so self_or_cls is\n            # a reference to self\n            cls = self_or_cls.__class__\n            if operand2 is None:\n                # Only one operand was given. Set operand2 to operand and\n                # operand to self so that we call the appropriate method of the\n                # operand.\n                operand2 = operand\n                operand = self_or_cls\n            else:\n                # Convert the first operand to the class of this method.\n                # This is important so that always the correct _arithmetics is\n                # called later that method.\n                operand = cls(operand)\n\n        else:\n            # It was used as classmethod so self_or_cls represents the cls\n            cls = self_or_cls\n\n            # It was called on the class so we expect two operands!\n            if operand2 is None:\n                raise TypeError(\n                    \"operand2 must be given when the method isn't \"\n                    \"called on an instance.\"\n                )\n\n            # Convert to this class. See above comment why.\n            operand = cls(operand)\n\n        # At this point operand, operand2, kwargs and cls are determined.\n        if operand2 is not None and not issubclass(\n            operand2.__class__, NDArithmeticMixin\n        ):\n            # Let's try to convert operand2 to the class of operand to allow for\n            # arithmetic operations with numbers, lists, numpy arrays, numpy masked\n            # arrays, astropy quantities, masked quantities and of other subclasses\n            # of NDData.\n            operand2 = cls(operand2)\n\n            # Now call the _arithmetics method to do the arithmetic.\n            result, init_kwds = operand._arithmetic(operation, operand2, **kwargs)\n        elif issubclass(operand2.__class__, NDArithmeticMixin):\n            # calling as class method:\n            result, init_kwds = cls._arithmetic(\n                operand,\n                operation,\n                operand2,\n                **kwargs,\n            )\n        else:\n            # otherwise call the _arithmetic method on self for a collapse operation:\n            # for collapse operations, use astropy.utils.masked rather than handle_mask\n            result, init_kwds = self_or_cls._arithmetic(\n                operation,\n                operand2,\n",
+        "returncode": 0,
+        "timestamp": 1785980662.587972,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_b71eb8c8b5fece00939722c2dde117f4",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && sed -n '514,528p' astropy/nddata/mixins/ndarithmetic.py\"}",
+            "name": "bash"
+          },
+          "id": "call_c0618bb88d06559ea36f3f2d24c5a286",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "So in `_prepare_then_do_arithmetic`, when multiplying a constant with an instance (nref_mask.multiply(1.)), operand2=1.0, operand=self. It then converts operand2 to cls (NDDataRef) because it's not NDArithmeticMixin. So operand2 becomes an NDDataRef(1.0) with no mask. Then `operand._arithmetic(operation, operand2, ...)` is called where operand is nref_mask (self) and operand2 is the NDDataRef constant.\n\nSo in _arithmetic, `operand` (the parameter) is the NDDataRef constant (not None). self.mask is not None, operand.mask is None. So `_arithmetic_mask` goes to the `elif self.mask is None and operand is not None` branch \u2014 that's false since self.mask is not None. Then `elif operand is None` is false. Then else: `handle_mask(self.mask, operand.mask)` \u2192 np.bitwise_or(mask, None) fails.\n\nSo the fix: in `_arithmetic_mask`, handle the case where one mask is None and the other is not. Currently it only handles when self.mask is None and operand.mask is None (both None), and when self.mask is None and operand not None (self has no mask, operand has one), and when operand is None (constant, self has mask).\n\nBut the case where self has a mask and operand is an NDData with mask None is not handled. That's the bug. Also case where operand has mask but self has none is handled by the `elif self.mask is None and operand is not None` branch which returns deepcopy(operand.mask) regardless of whether operand.mask is None... wait, that branch checks `self.mask is None and operand is not None`, and returns deepcopy(operand.mask). If operand.mask is None, deepcopy(None) is None. That's fine.\n\nSo the missing branch is when self.mask is not None and operand.mask is None. That should return deepcopy(self.mask).\n\nLet me fix `_arithmetic_mask` to handle that case. The condition at top: `(self.mask is None and operand is not None and operand.mask is None) or handle_mask is None` returns None. This handles both None. But we need to handle the asymmetric case.\n\nLet's modify the function. The current logic:\n\n```\nif (self.mask is None and operand is not None and operand.mask is None) or handle_mask is None:\n    return None\nelif self.mask is None and operand is not None:\n    return deepcopy(operand.mask)\nelif operand is None:\n    return deepcopy(self.mask)\nelse:\n    return handle_mask(self.mask, operand.mask, **kwds)\n```\n\nWe need to handle when one has mask and the other doesn't. Let's restructure:\n\n```\n# If neither has a mask, or handle_mask is None, result has no mask.\nif handle_mask is None:\n    return None\nelif operand is None:\n    return deepcopy(self.mask)   # self has mask\nelif self.mask is None:\n    return deepcopy(operand.mask)   # operand may or may not have mask; deepcopy(None) is None\nelif operand.mask is None:\n    return deepcopy(self.mask)\nelse:\n    return handle_mask(self.mask, operand.mask, **kwds)\n```\n\nWait but if self.mask is None and operand is None (e.g. both constants?), then `operand is None` returns deepcopy(self.mask) which is deepcopy(None) = None. Actually if operand is None and self.mask is None, deepcopy(None) is None, fine.\n\nBut what if handle_mask is None and self has mask? Should return None - handled.\n\nLet me write the fix carefully.\n\nCurrent behavior: if both None \u2192 return None. That's equivalent to `self.mask is None and operand is None` \u2192 deepcopy(None). Or `self.mask is None and operand.mask is None` \u2192 deepcopy(None). Actually if self.mask is None and operand.mask is None, and operand is not None, `elif self.mask is None and operand is not None: return deepcopy(operand.mask)` which is deepcopy(None) = None. Good.\n\nSo I'll add an `elif operand.mask is None: return deepcopy(self.mask)` branch after the `operand is None` branch and before the else. Let me do that.\n\nActually order matters. Let me rewrite:\n\n```\n        if handle_mask is None:\n            return None\n        elif self.mask is None:\n            # self has no mask; result takes operand's mask (None or not)\n            return deepcopy(operand.mask)\n        elif operand is None or operand.mask is None:\n            # operand has no mask (constant or NDData without mask); result takes self's mask\n            return deepcopy(self.mask)\n        else:\n            return handle_mask(self.mask, operand.mask, **kwds)\n```\n\nWait, but the original top condition handles the case where `operand is None` and self.mask is None too. With my rewrite, if self.mask is None and operand is None, `elif self.mask is None: return deepcopy(operand.mask)` \u2192 deepcopy(None) \u2192 None. Good.\n\nIf self.mask is None and operand has mask \u2192 deepcopy(operand.mask). Good.\n\nIf self.mask not None and operand is None \u2192 deepcopy(self.mask). Good.\n\nIf self.mask not None and operand.mask is None \u2192 deepcopy(self.mask). Good.\n\nIf both have masks \u2192 handle_mask. Good.\n\nBut wait, there's also `handle_mask` being `'first_found'` handled elsewhere (line 329), so _arithmetic_mask is only called for callable handle_mask. handle_mask None handled separately at line 323. So the `handle_mask is None` case in _arithmetic_mask is probably redundant but keep.\n\nNow let me apply the fix. Let me edit the file.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && sed -n '514,528p' astropy/nddata/mixins/ndarithmetic.py",
+            "tool_call_id": "call_c0618bb88d06559ea36f3f2d24c5a286"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-1214",
+          "created": 1785980788,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && sed -n '514,528p' astropy/nddata/mixins/ndarithmetic.py\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_c0618bb88d06559ea36f3f2d24c5a286",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "So in `_prepare_then_do_arithmetic`, when multiplying a constant with an instance (nref_mask.multiply(1.)), operand2=1.0, operand=self. It then converts operand2 to cls (NDDataRef) because it's not NDArithmeticMixin. So operand2 becomes an NDDataRef(1.0) with no mask. Then `operand._arithmetic(operation, operand2, ...)` is called where operand is nref_mask (self) and operand2 is the NDDataRef constant.\n\nSo in _arithmetic, `operand` (the parameter) is the NDDataRef constant (not None). self.mask is not None, operand.mask is None. So `_arithmetic_mask` goes to the `elif self.mask is None and operand is not None` branch \u2014 that's false since self.mask is not None. Then `elif operand is None` is false. Then else: `handle_mask(self.mask, operand.mask)` \u2192 np.bitwise_or(mask, None) fails.\n\nSo the fix: in `_arithmetic_mask`, handle the case where one mask is None and the other is not. Currently it only handles when self.mask is None and operand.mask is None (both None), and when self.mask is None and operand not None (self has no mask, operand has one), and when operand is None (constant, self has mask).\n\nBut the case where self has a mask and operand is an NDData with mask None is not handled. That's the bug. Also case where operand has mask but self has none is handled by the `elif self.mask is None and operand is not None` branch which returns deepcopy(operand.mask) regardless of whether operand.mask is None... wait, that branch checks `self.mask is None and operand is not None`, and returns deepcopy(operand.mask). If operand.mask is None, deepcopy(None) is None. That's fine.\n\nSo the missing branch is when self.mask is not None and operand.mask is None. That should return deepcopy(self.mask).\n\nLet me fix `_arithmetic_mask` to handle that case. The condition at top: `(self.mask is None and operand is not None and operand.mask is None) or handle_mask is None` returns None. This handles both None. But we need to handle the asymmetric case.\n\nLet's modify the function. The current logic:\n\n```\nif (self.mask is None and operand is not None and operand.mask is None) or handle_mask is None:\n    return None\nelif self.mask is None and operand is not None:\n    return deepcopy(operand.mask)\nelif operand is None:\n    return deepcopy(self.mask)\nelse:\n    return handle_mask(self.mask, operand.mask, **kwds)\n```\n\nWe need to handle when one has mask and the other doesn't. Let's restructure:\n\n```\n# If neither has a mask, or handle_mask is None, result has no mask.\nif handle_mask is None:\n    return None\nelif operand is None:\n    return deepcopy(self.mask)   # self has mask\nelif self.mask is None:\n    return deepcopy(operand.mask)   # operand may or may not have mask; deepcopy(None) is None\nelif operand.mask is None:\n    return deepcopy(self.mask)\nelse:\n    return handle_mask(self.mask, operand.mask, **kwds)\n```\n\nWait but if self.mask is None and operand is None (e.g. both constants?), then `operand is None` returns deepcopy(self.mask) which is deepcopy(None) = None. Actually if operand is None and self.mask is None, deepcopy(None) is None, fine.\n\nBut what if handle_mask is None and self has mask? Should return None - handled.\n\nLet me write the fix carefully.\n\nCurrent behavior: if both None \u2192 return None. That's equivalent to `self.mask is None and operand is None` \u2192 deepcopy(None). Or `self.mask is None and operand.mask is None` \u2192 deepcopy(None). Actually if self.mask is None and operand.mask is None, and operand is not None, `elif self.mask is None and operand is not None: return deepcopy(operand.mask)` which is deepcopy(None) = None. Good.\n\nSo I'll add an `elif operand.mask is None: return deepcopy(self.mask)` branch after the `operand is None` branch and before the else. Let me do that.\n\nActually order matters. Let me rewrite:\n\n```\n        if handle_mask is None:\n            return None\n        elif self.mask is None:\n            # self has no mask; result takes operand's mask (None or not)\n            return deepcopy(operand.mask)\n        elif operand is None or operand.mask is None:\n            # operand has no mask (constant or NDData without mask); result takes self's mask\n            return deepcopy(self.mask)\n        else:\n            return handle_mask(self.mask, operand.mask, **kwds)\n```\n\nWait, but the original top condition handles the case where `operand is None` and self.mask is None too. With my rewrite, if self.mask is None and operand is None, `elif self.mask is None: return deepcopy(operand.mask)` \u2192 deepcopy(None) \u2192 None. Good.\n\nIf self.mask is None and operand has mask \u2192 deepcopy(operand.mask). Good.\n\nIf self.mask not None and operand is None \u2192 deepcopy(self.mask). Good.\n\nIf self.mask not None and operand.mask is None \u2192 deepcopy(self.mask). Good.\n\nIf both have masks \u2192 handle_mask. Good.\n\nBut wait, there's also `handle_mask` being `'first_found'` handled elsewhere (line 329), so _arithmetic_mask is only called for callable handle_mask. handle_mask None handled separately at line 323. So the `handle_mask is None` case in _arithmetic_mask is probably redundant but keep.\n\nNow let me apply the fix. Let me edit the file.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 1381,
+            "prompt_tokens": 10946,
+            "total_tokens": 12327,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 1501,
+              "cached_tokens": 9445
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 2752.6,
+            "prefill_tokens": 1501,
+            "prefill_cached_tokens": 9445,
+            "prefill_tok_s": 557.6,
+            "decode_tok_s": 11.2,
+            "tok_per_step": 1.0
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1785980789.00101
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n        \"\"\"\n        # If only one mask is present we need not bother about any type checks\n        if (\n            self.mask is None and operand is not None and operand.mask is None\n        ) or handle_mask is None:\n            return None\n        elif self.mask is None and operand is not None:\n            # Make a copy so there is no reference in the result.\n            return deepcopy(operand.mask)\n        elif operand is None:\n            return deepcopy(self.mask)\n        else:\n            # Now lets calculate the resulting mask (operation enforces copy)\n            return handle_mask(self.mask, operand.mask, **kwds)\n\n</output>",
+      "extra": {
+        "raw_output": "        \"\"\"\n        # If only one mask is present we need not bother about any type checks\n        if (\n            self.mask is None and operand is not None and operand.mask is None\n        ) or handle_mask is None:\n            return None\n        elif self.mask is None and operand is not None:\n            # Make a copy so there is no reference in the result.\n            return deepcopy(operand.mask)\n        elif operand is None:\n            return deepcopy(self.mask)\n        else:\n            # Now lets calculate the resulting mask (operation enforces copy)\n            return handle_mask(self.mask, operand.mask, **kwds)\n\n",
+        "returncode": 0,
+        "timestamp": 1785980789.7010896,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_c0618bb88d06559ea36f3f2d24c5a286",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && python - <<'PY'\\nimport re\\npath = 'astropy/nddata/mixins/ndarithmetic.py'\\nwith open(path) as f:\\n    src = f.read()\\n\\nold = '''        # If only one mask is present we need not bother about any type checks\\n        if (\\n            self.mask is None and operand is not None and operand.mask is None\\n        ) or handle_mask is None:\\n            return None\\n        elif self.mask is None and operand is not None:\\n            # Make a copy so there is no reference in the result.\\n            return deepcopy(operand.mask)\\n        elif operand is None:\\n            return deepcopy(self.mask)\\n        else:\\n            # Now lets calculate the resulting mask (operation enforces copy)\\n            return handle_mask(self.mask, operand.mask, **kwds)'''\\n\\nnew = '''        # If only one mask is present we need not bother about any type checks\\n        if handle_mask is None:\\n            return None\\n        elif self.mask is None:\\n            # Make a copy so there is no reference in the result.\\n            return deepcopy(operand.mask)\\n        elif operand is None or operand.mask is None:\\n            return deepcopy(self.mask)\\n        else:\\n            # Now lets calculate the resulting mask (operation enforces copy)\\n            return handle_mask(self.mask, operand.mask, **kwds)'''\\n\\nassert old in src\\nsrc = src.replace(old, new)\\nwith open(path, 'w') as f:\\n    f.write(src)\\nprint(\\\"done\\\")\\nPY\"}",
+            "name": "bash"
+          },
+          "id": "call_248b5915862d1a066455e4b3af63a265",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "Now let me edit. I'll rewrite the block.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && python - <<'PY'\nimport re\npath = 'astropy/nddata/mixins/ndarithmetic.py'\nwith open(path) as f:\n    src = f.read()\n\nold = '''        # If only one mask is present we need not bother about any type checks\n        if (\n            self.mask is None and operand is not None and operand.mask is None\n        ) or handle_mask is None:\n            return None\n        elif self.mask is None and operand is not None:\n            # Make a copy so there is no reference in the result.\n            return deepcopy(operand.mask)\n        elif operand is None:\n            return deepcopy(self.mask)\n        else:\n            # Now lets calculate the resulting mask (operation enforces copy)\n            return handle_mask(self.mask, operand.mask, **kwds)'''\n\nnew = '''        # If only one mask is present we need not bother about any type checks\n        if handle_mask is None:\n            return None\n        elif self.mask is None:\n            # Make a copy so there is no reference in the result.\n            return deepcopy(operand.mask)\n        elif operand is None or operand.mask is None:\n            return deepcopy(self.mask)\n        else:\n            # Now lets calculate the resulting mask (operation enforces copy)\n            return handle_mask(self.mask, operand.mask, **kwds)'''\n\nassert old in src\nsrc = src.replace(old, new)\nwith open(path, 'w') as f:\n    f.write(src)\nprint(\"done\")\nPY",
+            "tool_call_id": "call_248b5915862d1a066455e4b3af63a265"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-1221",
+          "created": 1785980826,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && python - <<'PY'\\nimport re\\npath = 'astropy/nddata/mixins/ndarithmetic.py'\\nwith open(path) as f:\\n    src = f.read()\\n\\nold = '''        # If only one mask is present we need not bother about any type checks\\n        if (\\n            self.mask is None and operand is not None and operand.mask is None\\n        ) or handle_mask is None:\\n            return None\\n        elif self.mask is None and operand is not None:\\n            # Make a copy so there is no reference in the result.\\n            return deepcopy(operand.mask)\\n        elif operand is None:\\n            return deepcopy(self.mask)\\n        else:\\n            # Now lets calculate the resulting mask (operation enforces copy)\\n            return handle_mask(self.mask, operand.mask, **kwds)'''\\n\\nnew = '''        # If only one mask is present we need not bother about any type checks\\n        if handle_mask is None:\\n            return None\\n        elif self.mask is None:\\n            # Make a copy so there is no reference in the result.\\n            return deepcopy(operand.mask)\\n        elif operand is None or operand.mask is None:\\n            return deepcopy(self.mask)\\n        else:\\n            # Now lets calculate the resulting mask (operation enforces copy)\\n            return handle_mask(self.mask, operand.mask, **kwds)'''\\n\\nassert old in src\\nsrc = src.replace(old, new)\\nwith open(path, 'w') as f:\\n    f.write(src)\\nprint(\\\"done\\\")\\nPY\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_248b5915862d1a066455e4b3af63a265",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "Now let me edit. I'll rewrite the block.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 385,
+            "prompt_tokens": 12488,
+            "total_tokens": 12873,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 162,
+              "cached_tokens": 12326
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 1066.6,
+            "prefill_tokens": 162,
+            "prefill_cached_tokens": 12326,
+            "prefill_tok_s": 225.2,
+            "decode_tok_s": 10.6,
+            "tok_per_step": 1.0
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1785980827.0857852
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\ndone\n</output>",
+      "extra": {
+        "raw_output": "done\n",
+        "returncode": 0,
+        "timestamp": 1785980827.712781,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_248b5915862d1a066455e4b3af63a265",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && python -c \\\"\\nimport numpy as np\\nfrom astropy.nddata import NDDataRef\\n\\narray = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])\\nmask = np.array([[0, 1, 64], [8, 0, 1], [2, 1, 0]])\\n\\nnref_nomask = NDDataRef(array)\\nnref_mask = NDDataRef(array, mask=mask)\\n\\nprint('nomask * constant:', nref_nomask.multiply(1., handle_mask=np.bitwise_or).mask)\\nprint('nomask * itself:', nref_nomask.multiply(nref_nomask, handle_mask=np.bitwise_or).mask)\\nprint('mask * constant:', nref_mask.multiply(1., handle_mask=np.bitwise_or).mask)\\nprint('mask * itself:', nref_mask.multiply(nref_mask, handle_mask=np.bitwise_or).mask)\\nprint('mask * nomask:', nref_mask.multiply(nref_nomask, handle_mask=np.bitwise_or).mask)\\nprint('nomask * mask:', nref_nomask.multiply(nref_mask, handle_mask=np.bitwise_or).mask)\\n\\\"\"}",
+            "name": "bash"
+          },
+          "id": "call_0dee24989b8033cbdfc90d230eaa80a1",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && python -c \"\nimport numpy as np\nfrom astropy.nddata import NDDataRef\n\narray = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])\nmask = np.array([[0, 1, 64], [8, 0, 1], [2, 1, 0]])\n\nnref_nomask = NDDataRef(array)\nnref_mask = NDDataRef(array, mask=mask)\n\nprint('nomask * constant:', nref_nomask.multiply(1., handle_mask=np.bitwise_or).mask)\nprint('nomask * itself:', nref_nomask.multiply(nref_nomask, handle_mask=np.bitwise_or).mask)\nprint('mask * constant:', nref_mask.multiply(1., handle_mask=np.bitwise_or).mask)\nprint('mask * itself:', nref_mask.multiply(nref_mask, handle_mask=np.bitwise_or).mask)\nprint('mask * nomask:', nref_mask.multiply(nref_nomask, handle_mask=np.bitwise_or).mask)\nprint('nomask * mask:', nref_nomask.multiply(nref_mask, handle_mask=np.bitwise_or).mask)\n\"",
+            "tool_call_id": "call_0dee24989b8033cbdfc90d230eaa80a1"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-1225",
+          "created": 1785980859,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && python -c \\\"\\nimport numpy as np\\nfrom astropy.nddata import NDDataRef\\n\\narray = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])\\nmask = np.array([[0, 1, 64], [8, 0, 1], [2, 1, 0]])\\n\\nnref_nomask = NDDataRef(array)\\nnref_mask = NDDataRef(array, mask=mask)\\n\\nprint('nomask * constant:', nref_nomask.multiply(1., handle_mask=np.bitwise_or).mask)\\nprint('nomask * itself:', nref_nomask.multiply(nref_nomask, handle_mask=np.bitwise_or).mask)\\nprint('mask * constant:', nref_mask.multiply(1., handle_mask=np.bitwise_or).mask)\\nprint('mask * itself:', nref_mask.multiply(nref_mask, handle_mask=np.bitwise_or).mask)\\nprint('mask * nomask:', nref_mask.multiply(nref_nomask, handle_mask=np.bitwise_or).mask)\\nprint('nomask * mask:', nref_nomask.multiply(nref_mask, handle_mask=np.bitwise_or).mask)\\n\\\"\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_0dee24989b8033cbdfc90d230eaa80a1",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 316,
+            "prompt_tokens": 12900,
+            "total_tokens": 13216,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 28,
+              "cached_tokens": 12872
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 368.0,
+            "prefill_tokens": 28,
+            "prefill_cached_tokens": 12872,
+            "prefill_tok_s": 89.8,
+            "decode_tok_s": 9.9,
+            "tok_per_step": 1.0
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1785980859.975734
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\nnomask * constant: None\nnomask * itself: None\nmask * constant: [[ 0  1 64]\n [ 8  0  1]\n [ 2  1  0]]\nmask * itself: [[ 0  1 64]\n [ 8  0  1]\n [ 2  1  0]]\nmask * nomask: [[ 0  1 64]\n [ 8  0  1]\n [ 2  1  0]]\nnomask * mask: [[ 0  1 64]\n [ 8  0  1]\n [ 2  1  0]]\n</output>",
+      "extra": {
+        "raw_output": "nomask * constant: None\nnomask * itself: None\nmask * constant: [[ 0  1 64]\n [ 8  0  1]\n [ 2  1  0]]\nmask * itself: [[ 0  1 64]\n [ 8  0  1]\n [ 2  1  0]]\nmask * nomask: [[ 0  1 64]\n [ 8  0  1]\n [ 2  1  0]]\nnomask * mask: [[ 0  1 64]\n [ 8  0  1]\n [ 2  1  0]]\n",
+        "returncode": 0,
+        "timestamp": 1785980861.5632896,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_0dee24989b8033cbdfc90d230eaa80a1",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && python -m pytest astropy/nddata/mixins/tests/test_ndarithmetic.py -q 2>&1 | tail -20\"}",
+            "name": "bash"
+          },
+          "id": "call_6b3598ad2ecc8d6b4f668103c13678c1",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "All cases pass. Let me also run the existing tests for nddata arithmetic to make sure nothing breaks.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && python -m pytest astropy/nddata/mixins/tests/test_ndarithmetic.py -q 2>&1 | tail -20",
+            "tool_call_id": "call_6b3598ad2ecc8d6b4f668103c13678c1"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-1227",
+          "created": 1785980870,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && python -m pytest astropy/nddata/mixins/tests/test_ndarithmetic.py -q 2>&1 | tail -20\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_6b3598ad2ecc8d6b4f668103c13678c1",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "All cases pass. Let me also run the existing tests for nddata arithmetic to make sure nothing breaks.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 98,
+            "prompt_tokens": 13369,
+            "total_tokens": 13467,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 154,
+              "cached_tokens": 13215
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 592.8,
+            "prefill_tokens": 154,
+            "prefill_cached_tokens": 13215,
+            "prefill_tok_s": 270.5,
+            "decode_tok_s": 11.7,
+            "tok_per_step": 1.01
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1785980870.734894
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n<frozen importlib._bootstrap>:228: RuntimeWarning: numpy.ndarray size changed, may indicate binary incompatibility. Expected 80 from C header, got 96 from PyObject\nInternet access disabled\n\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m [ 40%]\n\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m [ 80%]\n\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m                                      [100%]\u001b[0m\n\u001b[32m\u001b[32m\u001b[1m179 passed\u001b[0m\u001b[32m in 2.56s\u001b[0m\u001b[0m\n</output>",
+      "extra": {
+        "raw_output": "<frozen importlib._bootstrap>:228: RuntimeWarning: numpy.ndarray size changed, may indicate binary incompatibility. Expected 80 from C header, got 96 from PyObject\nInternet access disabled\n\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m [ 40%]\n\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m [ 80%]\n\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m                                      [100%]\u001b[0m\n\u001b[32m\u001b[32m\u001b[1m179 passed\u001b[0m\u001b[32m in 2.56s\u001b[0m\u001b[0m\n",
+        "returncode": 0,
+        "timestamp": 1785980877.8004608,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_6b3598ad2ecc8d6b4f668103c13678c1",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && git diff -- astropy/nddata/mixins/ndarithmetic.py\"}",
+            "name": "bash"
+          },
+          "id": "call_a2fd8c90682680df1bebe05ef68e43af",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "All tests pass. Let me also check there isn't an issue with `operand` being None and `self.mask` not None in the rewritten branch ordering \u2014 I placed `elif self.mask is None` before `operand is None or operand.mask is None`. If self.mask is None and operand is None, returns deepcopy(None)=None, fine.\n\nNow let me create the patch. Only modified file: astropy/nddata/mixins/ndarithmetic.py.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && git diff -- astropy/nddata/mixins/ndarithmetic.py",
+            "tool_call_id": "call_a2fd8c90682680df1bebe05ef68e43af"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-1228",
+          "created": 1785980894,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && git diff -- astropy/nddata/mixins/ndarithmetic.py\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_a2fd8c90682680df1bebe05ef68e43af",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "All tests pass. Let me also check there isn't an issue with `operand` being None and `self.mask` not None in the rewritten branch ordering \u2014 I placed `elif self.mask is None` before `operand is None or operand.mask is None`. If self.mask is None and operand is None, returns deepcopy(None)=None, fine.\n\nNow let me create the patch. Only modified file: astropy/nddata/mixins/ndarithmetic.py.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 166,
+            "prompt_tokens": 15224,
+            "total_tokens": 15390,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 1758,
+              "cached_tokens": 13466
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 3086.7,
+            "prefill_tokens": 1758,
+            "prefill_cached_tokens": 13466,
+            "prefill_tok_s": 574.7,
+            "decode_tok_s": 11.8,
+            "tok_per_step": 1.01
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1785980895.303498
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\ndiff --git a/astropy/nddata/mixins/ndarithmetic.py b/astropy/nddata/mixins/ndarithmetic.py\nindex 4153dfccb..4a4ba3356 100644\n--- a/astropy/nddata/mixins/ndarithmetic.py\n+++ b/astropy/nddata/mixins/ndarithmetic.py\n@@ -513,14 +513,12 @@ class NDArithmeticMixin:\n             ``handle_mask`` must create (and copy) the returned mask.\n         \"\"\"\n         # If only one mask is present we need not bother about any type checks\n-        if (\n-            self.mask is None and operand is not None and operand.mask is None\n-        ) or handle_mask is None:\n+        if handle_mask is None:\n             return None\n-        elif self.mask is None and operand is not None:\n+        elif self.mask is None:\n             # Make a copy so there is no reference in the result.\n             return deepcopy(operand.mask)\n-        elif operand is None:\n+        elif operand is None or operand.mask is None:\n             return deepcopy(self.mask)\n         else:\n             # Now lets calculate the resulting mask (operation enforces copy)\n</output>",
+      "extra": {
+        "raw_output": "diff --git a/astropy/nddata/mixins/ndarithmetic.py b/astropy/nddata/mixins/ndarithmetic.py\nindex 4153dfccb..4a4ba3356 100644\n--- a/astropy/nddata/mixins/ndarithmetic.py\n+++ b/astropy/nddata/mixins/ndarithmetic.py\n@@ -513,14 +513,12 @@ class NDArithmeticMixin:\n             ``handle_mask`` must create (and copy) the returned mask.\n         \"\"\"\n         # If only one mask is present we need not bother about any type checks\n-        if (\n-            self.mask is None and operand is not None and operand.mask is None\n-        ) or handle_mask is None:\n+        if handle_mask is None:\n             return None\n-        elif self.mask is None and operand is not None:\n+        elif self.mask is None:\n             # Make a copy so there is no reference in the result.\n             return deepcopy(operand.mask)\n-        elif operand is None:\n+        elif operand is None or operand.mask is None:\n             return deepcopy(self.mask)\n         else:\n             # Now lets calculate the resulting mask (operation enforces copy)\n",
+        "returncode": 0,
+        "timestamp": 1785980895.9241233,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_a2fd8c90682680df1bebe05ef68e43af",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && git diff -- astropy/nddata/mixins/ndarithmetic.py > patch.txt && cat patch.txt\"}",
+            "name": "bash"
+          },
+          "id": "call_1265d3e581d00c23ba248a41b6c3c85b",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && git diff -- astropy/nddata/mixins/ndarithmetic.py > patch.txt && cat patch.txt",
+            "tool_call_id": "call_1265d3e581d00c23ba248a41b6c3c85b"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-1229",
+          "created": 1785980902,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && git diff -- astropy/nddata/mixins/ndarithmetic.py > patch.txt && cat patch.txt\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_1265d3e581d00c23ba248a41b6c3c85b",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 70,
+            "prompt_tokens": 15689,
+            "total_tokens": 15759,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 300,
+              "cached_tokens": 15389
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 642.1,
+            "prefill_tokens": 300,
+            "prefill_cached_tokens": 15389,
+            "prefill_tok_s": 503.5,
+            "decode_tok_s": 11.8,
+            "tok_per_step": 1.01
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1785980902.45133
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\ndiff --git a/astropy/nddata/mixins/ndarithmetic.py b/astropy/nddata/mixins/ndarithmetic.py\nindex 4153dfccb..4a4ba3356 100644\n--- a/astropy/nddata/mixins/ndarithmetic.py\n+++ b/astropy/nddata/mixins/ndarithmetic.py\n@@ -513,14 +513,12 @@ class NDArithmeticMixin:\n             ``handle_mask`` must create (and copy) the returned mask.\n         \"\"\"\n         # If only one mask is present we need not bother about any type checks\n-        if (\n-            self.mask is None and operand is not None and operand.mask is None\n-        ) or handle_mask is None:\n+        if handle_mask is None:\n             return None\n-        elif self.mask is None and operand is not None:\n+        elif self.mask is None:\n             # Make a copy so there is no reference in the result.\n             return deepcopy(operand.mask)\n-        elif operand is None:\n+        elif operand is None or operand.mask is None:\n             return deepcopy(self.mask)\n         else:\n             # Now lets calculate the resulting mask (operation enforces copy)\n</output>",
+      "extra": {
+        "raw_output": "diff --git a/astropy/nddata/mixins/ndarithmetic.py b/astropy/nddata/mixins/ndarithmetic.py\nindex 4153dfccb..4a4ba3356 100644\n--- a/astropy/nddata/mixins/ndarithmetic.py\n+++ b/astropy/nddata/mixins/ndarithmetic.py\n@@ -513,14 +513,12 @@ class NDArithmeticMixin:\n             ``handle_mask`` must create (and copy) the returned mask.\n         \"\"\"\n         # If only one mask is present we need not bother about any type checks\n-        if (\n-            self.mask is None and operand is not None and operand.mask is None\n-        ) or handle_mask is None:\n+        if handle_mask is None:\n             return None\n-        elif self.mask is None and operand is not None:\n+        elif self.mask is None:\n             # Make a copy so there is no reference in the result.\n             return deepcopy(operand.mask)\n-        elif operand is None:\n+        elif operand is None or operand.mask is None:\n             return deepcopy(self.mask)\n         else:\n             # Now lets calculate the resulting mask (operation enforces copy)\n",
+        "returncode": 0,
+        "timestamp": 1785980903.0183349,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_1265d3e581d00c23ba248a41b6c3c85b",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT && cat patch.txt\"}",
+            "name": "bash"
+          },
+          "id": "call_598dbf7ec0b4d4321b80e2ff2a3ebe97",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT && cat patch.txt",
+            "tool_call_id": "call_598dbf7ec0b4d4321b80e2ff2a3ebe97"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-1231",
+          "created": 1785980909,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT && cat patch.txt\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_598dbf7ec0b4d4321b80e2ff2a3ebe97",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 66,
+            "prompt_tokens": 16058,
+            "total_tokens": 16124,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 300,
+              "cached_tokens": 15758
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 781.1,
+            "prefill_tokens": 300,
+            "prefill_cached_tokens": 15758,
+            "prefill_tok_s": 401.5,
+            "decode_tok_s": 11.0,
+            "tok_per_step": 1.02
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1785980909.750244
+      }
+    },
+    {
+      "role": "exit",
+      "content": "diff --git a/astropy/nddata/mixins/ndarithmetic.py b/astropy/nddata/mixins/ndarithmetic.py\nindex 4153dfccb..4a4ba3356 100644\n--- a/astropy/nddata/mixins/ndarithmetic.py\n+++ b/astropy/nddata/mixins/ndarithmetic.py\n@@ -513,14 +513,12 @@ class NDArithmeticMixin:\n             ``handle_mask`` must create (and copy) the returned mask.\n         \"\"\"\n         # If only one mask is present we need not bother about any type checks\n-        if (\n-            self.mask is None and operand is not None and operand.mask is None\n-        ) or handle_mask is None:\n+        if handle_mask is None:\n             return None\n-        elif self.mask is None and operand is not None:\n+        elif self.mask is None:\n             # Make a copy so there is no reference in the result.\n             return deepcopy(operand.mask)\n-        elif operand is None:\n+        elif operand is None or operand.mask is None:\n             return deepcopy(self.mask)\n         else:\n             # Now lets calculate the resulting mask (operation enforces copy)\n",
+      "extra": {
+        "exit_status": "Submitted",
+        "submission": "diff --git a/astropy/nddata/mixins/ndarithmetic.py b/astropy/nddata/mixins/ndarithmetic.py\nindex 4153dfccb..4a4ba3356 100644\n--- a/astropy/nddata/mixins/ndarithmetic.py\n+++ b/astropy/nddata/mixins/ndarithmetic.py\n@@ -513,14 +513,12 @@ class NDArithmeticMixin:\n             ``handle_mask`` must create (and copy) the returned mask.\n         \"\"\"\n         # If only one mask is present we need not bother about any type checks\n-        if (\n-            self.mask is None and operand is not None and operand.mask is None\n-        ) or handle_mask is None:\n+        if handle_mask is None:\n             return None\n-        elif self.mask is None and operand is not None:\n+        elif self.mask is None:\n             # Make a copy so there is no reference in the result.\n             return deepcopy(operand.mask)\n-        elif operand is None:\n+        elif operand is None or operand.mask is None:\n             return deepcopy(self.mask)\n         else:\n             # Now lets calculate the resulting mask (operation enforces copy)\n"
+      }
+    }
+  ],
+  "trajectory_format": "mini-swe-agent-1.1",
+  "instance_id": "astropy__astropy-14995"
+}

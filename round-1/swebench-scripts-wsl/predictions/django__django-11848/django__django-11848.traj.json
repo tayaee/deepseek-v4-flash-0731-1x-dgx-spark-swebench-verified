@@ -1,0 +1,1406 @@
+{
+  "info": {
+    "model_stats": {
+      "instance_cost": 0.0,
+      "api_calls": 14
+    },
+    "config": {
+      "agent": {
+        "system_template": "You are a helpful assistant that can interact with a computer shell to solve programming tasks.\n",
+        "instance_template": "<pr_description>\nConsider the following PR description:\n{{task}}\n</pr_description>\n\n<instructions>\n# Task Instructions\n\n## Overview\n\nYou're a software engineer interacting continuously with a computer by submitting commands.\nYou'll be helping implement necessary changes to meet requirements in the PR description.\nYour task is specifically to make changes to non-test files in the current directory in order to fix the issue described in the PR description in a way that is general and consistent with the codebase.\n<IMPORTANT>This is an interactive process where you will think and issue AT LEAST ONE command, see the result, then think and issue your next command(s).</important>\n\nFor each response:\n\n1. Include a THOUGHT section explaining your reasoning and what you're trying to accomplish\n2. Provide one or more bash tool calls to execute\n\n## Important Boundaries\n\n- MODIFY: Regular source code files in /testbed (this is the working directory for all your subsequent commands)\n- DO NOT MODIFY: Tests, configuration files (pyproject.toml, setup.cfg, etc.)\n\n## Recommended Workflow\n\n1. Analyze the codebase by finding and reading relevant files\n2. Create a script to reproduce the issue\n3. Edit the source code to resolve the issue\n4. Verify your fix works by running your script again\n5. Test edge cases to ensure your fix is robust\n\n## Command Execution Rules\n\nYou are operating in an environment where\n\n1. You issue at least one command\n2. The system executes the command(s) in a subshell\n3. You see the result(s)\n4. You write your next command(s)\n\nEach response should include:\n\n1. **Reasoning text** where you explain your analysis and plan\n2. At least one tool call with your command\n\n**CRITICAL REQUIREMENTS:**\n\n- Your response SHOULD include reasoning text explaining what you're doing\n- Your response MUST include AT LEAST ONE bash tool call. You can make MULTIPLE tool calls in a single response when the commands are independent (e.g., searching multiple files, reading different parts of the codebase).\n- Directory or environment variable changes are not persistent. Every action is executed in a new subshell.\n- However, you can prefix any action with `MY_ENV_VAR=MY_VALUE cd /path/to/working/dir && ...` or write/load environment variables from files\n\nExample of a CORRECT response:\n<example_response>\nI need to understand the Builder-related code. Let me find relevant files and check the project structure.\n\n[Makes multiple bash tool calls: {\"command\": \"ls -la\"}, {\"command\": \"find src -name '*.java' | grep -i builder\"}, {\"command\": \"cat README.md | head -50\"}]\n</example_response>\n\n## Environment Details\n\n- You have a full Linux shell environment\n- Always use non-interactive flags (-y, -f) for commands\n- Avoid interactive tools like vi, nano, or any that require user input\n- You can use bash commands or invoke any tool that is available in the environment\n- You can also create new tools or scripts to help you with the task\n- If a tool isn't available, you can also install it\n\n## Submission\n\nWhen you've completed your work, you MUST submit your changes as a git patch.\nFollow these steps IN ORDER, with SEPARATE commands:\n\nStep 1: Create the patch file\nRun `git diff -- path/to/file1 path/to/file2 > patch.txt` listing only the source files you modified.\nDo NOT commit your changes.\n\n<IMPORTANT>\nThe patch must only contain changes to the specific source files you modified to fix the issue.\nDo not submit file creations or changes to any of the following files:\n\n- test and reproduction files\n- helper scripts, tests, or tools that you created\n- installation, build, packaging, configuration, or setup scripts unless they are directly part of the issue you were fixing (you can assume that the environment is already set up for your client)\n- binary or compiled files\n</IMPORTANT>\n\nStep 2: Verify your patch\nInspect patch.txt to confirm it only contains your intended changes and headers show `--- a/` and `+++ b/` paths.\n\nStep 3: Submit (EXACT command required)\nYou MUST use this EXACT command to submit:\n\n```bash\necho COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT && cat patch.txt\n```\n\nIf the command fails (nonzero exit status), it will not submit.\n\n<CRITICAL>\n- Creating/viewing the patch and submitting it MUST be separate commands (not combined with &&).\n- If you modify patch.txt after verifying, you SHOULD verify again before submitting.\n- You CANNOT continue working (reading, editing, testing) in any way on this task after submitting.\n</CRITICAL>\n</instructions>\n",
+        "step_limit": 250,
+        "cost_limit": 3.0,
+        "wall_time_limit_seconds": 0,
+        "max_consecutive_format_errors": 3,
+        "output_path": null
+      },
+      "agent_type": "minisweagent.run.benchmarks.utils.common.ProgressTrackingAgent",
+      "model": {
+        "model_name": "openai/deepseek-v4-flash",
+        "model_kwargs": {
+          "drop_params": true,
+          "parallel_tool_calls": true
+        },
+        "litellm_model_registry": null,
+        "set_cache_control": null,
+        "cost_tracking": "ignore_errors",
+        "format_error_template": "{% if finish_reason is defined and (finish_reason == \"length\" or (finish_reason == \"tool_calls\" and not has_tool_calls)) -%}\nYour previous response reached the output token limit (finish_reason={{ finish_reason }}) before you produced a tool call, so it was cut off. Respond more concisely and finish with exactly one bash tool call. If you need to think more, do so briefly.\n{%- else -%}\nTool call error:\n\n<error>\n{{error}}\n</error>\n\nHere is general guidance on how to submit correct toolcalls:\n\nEvery response needs to use the 'bash' tool at least once to execute commands.\n\nCall the bash tool with your command as the argument:\n- Tool: bash\n- Arguments: {\"command\": \"your_command_here\"}\n\nIf you have completed your assignment, please consult the first message about how to\nsubmit your solution (you will not be able to continue working on this task after that).\n{%- endif %}\n",
+        "observation_template": "{% if output.exception_info -%}\n<exception>{{output.exception_info}}</exception>\n{% endif -%}\n<returncode>{{output.returncode}}</returncode>\n{% if output.output | length < 10000 -%}\n<output>\n{{ output.output -}}\n</output>\n{%- else -%}\n<warning>\nThe output of your last command was too long.\nPlease try a different command that produces less output.\nIf you're looking at a file you can try use head, tail or sed to view a smaller number of lines selectively.\nIf you're using grep or find and it produced too much output, you can use a more selective search pattern.\nIf you really need to see something from the full command's output, you can redirect output to a file and then search in that file.\n</warning>\n{%- set elided_chars = output.output | length - 10000 -%}\n<output_head>\n{{ output.output[:5000] }}\n</output_head>\n<elided_chars>\n{{ elided_chars }} characters elided\n</elided_chars>\n<output_tail>\n{{ output.output[-5000:] }}\n</output_tail>\n{%- endif -%}\n",
+        "multimodal_regex": ""
+      },
+      "model_type": "minisweagent.models.litellm_model.LitellmModel",
+      "environment": {
+        "image": "docker.io/swebench/sweb.eval.x86_64.django_1776_django-11848:latest",
+        "cwd": "/testbed",
+        "env": {
+          "PAGER": "cat",
+          "MANPAGER": "cat",
+          "LESS": "-R",
+          "PIP_PROGRESS_BAR": "off",
+          "TQDM_DISABLE": "1",
+          "BASH_ENV": "/root/.bashrc"
+        },
+        "forward_env": [],
+        "timeout": 60,
+        "executable": "docker",
+        "run_args": [
+          "--rm"
+        ],
+        "container_timeout": "2h",
+        "pull_timeout": 600,
+        "interpreter": [
+          "bash",
+          "-c"
+        ]
+      },
+      "environment_type": "minisweagent.environments.docker.DockerEnvironment"
+    },
+    "mini_version": "2.4.5",
+    "exit_status": "Submitted",
+    "submission": "diff --git a/django/utils/http.py b/django/utils/http.py\nindex 572cfb4347..4e53ebcf9b 100644\n--- a/django/utils/http.py\n+++ b/django/utils/http.py\n@@ -176,10 +176,13 @@ def parse_http_date(date):\n     try:\n         year = int(m.group('year'))\n         if year < 100:\n-            if year < 70:\n-                year += 2000\n+            now_year = datetime.datetime.now().year\n+            now_century = now_year // 100 * 100\n+            now_century_year = now_year % 100\n+            if year > now_century_year + 50:\n+                year += now_century - 100\n             else:\n-                year += 1900\n+                year += now_century\n         month = MONTHS.index(m.group('mon').lower()) + 1\n         day = int(m.group('day'))\n         hour = int(m.group('hour'))\n"
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful assistant that can interact with a computer shell to solve programming tasks."
+    },
+    {
+      "role": "user",
+      "content": "<pr_description>\nConsider the following PR description:\ndjango.utils.http.parse_http_date two digit year check is incorrect\nDescription\n\t \n\t\t(last modified by Ad Timmering)\n\t \nRFC 850 does not mention this, but in RFC 7231 (and there's something similar in RFC 2822), there's the following quote:\nRecipients of a timestamp value in rfc850-date format, which uses a\ntwo-digit year, MUST interpret a timestamp that appears to be more\nthan 50 years in the future as representing the most recent year in\nthe past that had the same last two digits.\nCurrent logic is hard coded to consider 0-69 to be in 2000-2069, and 70-99 to be 1970-1999, instead of comparing versus the current year.\n\n</pr_description>\n\n<instructions>\n# Task Instructions\n\n## Overview\n\nYou're a software engineer interacting continuously with a computer by submitting commands.\nYou'll be helping implement necessary changes to meet requirements in the PR description.\nYour task is specifically to make changes to non-test files in the current directory in order to fix the issue described in the PR description in a way that is general and consistent with the codebase.\n<IMPORTANT>This is an interactive process where you will think and issue AT LEAST ONE command, see the result, then think and issue your next command(s).</important>\n\nFor each response:\n\n1. Include a THOUGHT section explaining your reasoning and what you're trying to accomplish\n2. Provide one or more bash tool calls to execute\n\n## Important Boundaries\n\n- MODIFY: Regular source code files in /testbed (this is the working directory for all your subsequent commands)\n- DO NOT MODIFY: Tests, configuration files (pyproject.toml, setup.cfg, etc.)\n\n## Recommended Workflow\n\n1. Analyze the codebase by finding and reading relevant files\n2. Create a script to reproduce the issue\n3. Edit the source code to resolve the issue\n4. Verify your fix works by running your script again\n5. Test edge cases to ensure your fix is robust\n\n## Command Execution Rules\n\nYou are operating in an environment where\n\n1. You issue at least one command\n2. The system executes the command(s) in a subshell\n3. You see the result(s)\n4. You write your next command(s)\n\nEach response should include:\n\n1. **Reasoning text** where you explain your analysis and plan\n2. At least one tool call with your command\n\n**CRITICAL REQUIREMENTS:**\n\n- Your response SHOULD include reasoning text explaining what you're doing\n- Your response MUST include AT LEAST ONE bash tool call. You can make MULTIPLE tool calls in a single response when the commands are independent (e.g., searching multiple files, reading different parts of the codebase).\n- Directory or environment variable changes are not persistent. Every action is executed in a new subshell.\n- However, you can prefix any action with `MY_ENV_VAR=MY_VALUE cd /path/to/working/dir && ...` or write/load environment variables from files\n\nExample of a CORRECT response:\n<example_response>\nI need to understand the Builder-related code. Let me find relevant files and check the project structure.\n\n[Makes multiple bash tool calls: {\"command\": \"ls -la\"}, {\"command\": \"find src -name '*.java' | grep -i builder\"}, {\"command\": \"cat README.md | head -50\"}]\n</example_response>\n\n## Environment Details\n\n- You have a full Linux shell environment\n- Always use non-interactive flags (-y, -f) for commands\n- Avoid interactive tools like vi, nano, or any that require user input\n- You can use bash commands or invoke any tool that is available in the environment\n- You can also create new tools or scripts to help you with the task\n- If a tool isn't available, you can also install it\n\n## Submission\n\nWhen you've completed your work, you MUST submit your changes as a git patch.\nFollow these steps IN ORDER, with SEPARATE commands:\n\nStep 1: Create the patch file\nRun `git diff -- path/to/file1 path/to/file2 > patch.txt` listing only the source files you modified.\nDo NOT commit your changes.\n\n<IMPORTANT>\nThe patch must only contain changes to the specific source files you modified to fix the issue.\nDo not submit file creations or changes to any of the following files:\n\n- test and reproduction files\n- helper scripts, tests, or tools that you created\n- installation, build, packaging, configuration, or setup scripts unless they are directly part of the issue you were fixing (you can assume that the environment is already set up for your client)\n- binary or compiled files\n</IMPORTANT>\n\nStep 2: Verify your patch\nInspect patch.txt to confirm it only contains your intended changes and headers show `--- a/` and `+++ b/` paths.\n\nStep 3: Submit (EXACT command required)\nYou MUST use this EXACT command to submit:\n\n```bash\necho COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT && cat patch.txt\n```\n\nIf the command fails (nonzero exit status), it will not submit.\n\n<CRITICAL>\n- Creating/viewing the patch and submitting it MUST be separate commands (not combined with &&).\n- If you modify patch.txt after verifying, you SHOULD verify again before submitting.\n- You CANNOT continue working (reading, editing, testing) in any way on this task after submitting.\n</CRITICAL>\n</instructions>"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && find . -path '*/django/utils/http.py' 2>/dev/null; git log --oneline -5 2>/dev/null\"}",
+            "name": "bash"
+          },
+          "id": "call_bc9fa5b8dd13c2a2c4a48d4be88f348d",
+          "type": "function"
+        },
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && git status\"}",
+            "name": "bash"
+          },
+          "id": "call_195b65c6d500964b3f05c3da8903bf34",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "We need to modify source code. Let me explore the repo. The PR description is about django.utils.http.parse_http_date two digit year check. Let's find that file.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && find . -path '*/django/utils/http.py' 2>/dev/null; git log --oneline -5 2>/dev/null",
+            "tool_call_id": "call_bc9fa5b8dd13c2a2c4a48d4be88f348d"
+          },
+          {
+            "command": "cd /testbed && git status",
+            "tool_call_id": "call_195b65c6d500964b3f05c3da8903bf34"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-2012",
+          "created": 1786007676,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && find . -path '*/django/utils/http.py' 2>/dev/null; git log --oneline -5 2>/dev/null\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_bc9fa5b8dd13c2a2c4a48d4be88f348d",
+                    "type": "function"
+                  },
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && git status\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_195b65c6d500964b3f05c3da8903bf34",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "We need to modify source code. Let me explore the repo. The PR description is about django.utils.http.parse_http_date two digit year check. Let's find that file.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 148,
+            "prompt_tokens": 1527,
+            "total_tokens": 1675,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 1163,
+              "cached_tokens": 364
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 2481.6,
+            "prefill_tokens": 1527,
+            "prefill_cached_tokens": 0,
+            "prefill_tok_s": 656.1,
+            "decode_tok_s": 11.5,
+            "tok_per_step": 1.01
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786007676.741333
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n./django/utils/http.py\nb485daa4cd SWE-bench\nf0adf3b9b7 Fixed #30774 -- Made serialization in migrations use members names for Enums.\ne02f67ef2d Doc'd that migrate commmand accepts a unique migration name prefix.\nfa8fe09e4e Fixed #30802 -- Prevented manifest creation when running collectstatic in dry run mode.\n45554fd5c5 Fixed #30597 -- Clarified how to unapply migrations.\n</output>",
+      "extra": {
+        "raw_output": "./django/utils/http.py\nb485daa4cd SWE-bench\nf0adf3b9b7 Fixed #30774 -- Made serialization in migrations use members names for Enums.\ne02f67ef2d Doc'd that migrate commmand accepts a unique migration name prefix.\nfa8fe09e4e Fixed #30802 -- Prevented manifest creation when running collectstatic in dry run mode.\n45554fd5c5 Fixed #30597 -- Clarified how to unapply migrations.\n",
+        "returncode": 0,
+        "timestamp": 1786007683.4869466,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_bc9fa5b8dd13c2a2c4a48d4be88f348d",
+      "role": "tool"
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\nOn branch main\nnothing to commit, working tree clean\n</output>",
+      "extra": {
+        "raw_output": "On branch main\nnothing to commit, working tree clean\n",
+        "returncode": 0,
+        "timestamp": 1786007683.492823,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_195b65c6d500964b3f05c3da8903bf34",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && grep -n \\\"parse_http_date\\\\|def parse_http_date\\\\|two.digit\\\\|2000\\\\|2069\\\\|1970\\\" django/utils/http.py\"}",
+            "name": "bash"
+          },
+          "id": "call_6492a1d698c7dbc3f421ceb7c0f4e11a",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && grep -n \"parse_http_date\\|def parse_http_date\\|two.digit\\|2000\\|2069\\|1970\" django/utils/http.py",
+            "tool_call_id": "call_6492a1d698c7dbc3f421ceb7c0f4e11a"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-2016",
+          "created": 1786007698,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && grep -n \\\"parse_http_date\\\\|def parse_http_date\\\\|two.digit\\\\|2000\\\\|2069\\\\|1970\\\" django/utils/http.py\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_6492a1d698c7dbc3f421ceb7c0f4e11a",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 79,
+            "prompt_tokens": 1840,
+            "total_tokens": 1919,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 166,
+              "cached_tokens": 1674
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 761.5,
+            "prefill_tokens": 166,
+            "prefill_cached_tokens": 1674,
+            "prefill_tok_s": 237.9,
+            "decode_tok_s": 11.3,
+            "tok_per_step": 1.01
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786007698.765228
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n158:def parse_http_date(date):\n180:                year += 2000\n194:def parse_http_date_safe(date):\n196:    Same as parse_http_date, but return None if the input is invalid.\n199:        return parse_http_date(date)\n</output>",
+      "extra": {
+        "raw_output": "158:def parse_http_date(date):\n180:                year += 2000\n194:def parse_http_date_safe(date):\n196:    Same as parse_http_date, but return None if the input is invalid.\n199:        return parse_http_date(date)\n",
+        "returncode": 0,
+        "timestamp": 1786007699.308056,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_6492a1d698c7dbc3f421ceb7c0f4e11a",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && sed -n '150,205p' django/utils/http.py\"}",
+            "name": "bash"
+          },
+          "id": "call_861b040d681f754a7ff3ec808d79f71c",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && sed -n '150,205p' django/utils/http.py",
+            "tool_call_id": "call_861b040d681f754a7ff3ec808d79f71c"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-2018",
+          "created": 1786007707,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && sed -n '150,205p' django/utils/http.py\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_861b040d681f754a7ff3ec808d79f71c",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 60,
+            "prompt_tokens": 2002,
+            "total_tokens": 2062,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 84,
+              "cached_tokens": 1918
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 888.3,
+            "prefill_tokens": 84,
+            "prefill_cached_tokens": 1918,
+            "prefill_tok_s": 98.5,
+            "decode_tok_s": 7.8,
+            "tok_per_step": 1.02
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786007707.8507938
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n    epoch, in UTC - such as that outputted by time.time(). If set to None, it\n    defaults to the current time.\n\n    Output a string in the format 'Wdy, DD Mon YYYY HH:MM:SS GMT'.\n    \"\"\"\n    return formatdate(epoch_seconds, usegmt=True)\n\n\ndef parse_http_date(date):\n    \"\"\"\n    Parse a date format as specified by HTTP RFC7231 section 7.1.1.1.\n\n    The three formats allowed by the RFC are accepted, even if only the first\n    one is still in widespread use.\n\n    Return an integer expressed in seconds since the epoch, in UTC.\n    \"\"\"\n    # email.utils.parsedate() does the job for RFC1123 dates; unfortunately\n    # RFC7231 makes it mandatory to support RFC850 dates too. So we roll\n    # our own RFC-compliant parsing.\n    for regex in RFC1123_DATE, RFC850_DATE, ASCTIME_DATE:\n        m = regex.match(date)\n        if m is not None:\n            break\n    else:\n        raise ValueError(\"%r is not in a valid HTTP date format\" % date)\n    try:\n        year = int(m.group('year'))\n        if year < 100:\n            if year < 70:\n                year += 2000\n            else:\n                year += 1900\n        month = MONTHS.index(m.group('mon').lower()) + 1\n        day = int(m.group('day'))\n        hour = int(m.group('hour'))\n        min = int(m.group('min'))\n        sec = int(m.group('sec'))\n        result = datetime.datetime(year, month, day, hour, min, sec)\n        return calendar.timegm(result.utctimetuple())\n    except Exception as exc:\n        raise ValueError(\"%r is not a valid date\" % date) from exc\n\n\ndef parse_http_date_safe(date):\n    \"\"\"\n    Same as parse_http_date, but return None if the input is invalid.\n    \"\"\"\n    try:\n        return parse_http_date(date)\n    except Exception:\n        pass\n\n\n# Base 36 functions: useful for generating compact URLs\n\n</output>",
+      "extra": {
+        "raw_output": "    epoch, in UTC - such as that outputted by time.time(). If set to None, it\n    defaults to the current time.\n\n    Output a string in the format 'Wdy, DD Mon YYYY HH:MM:SS GMT'.\n    \"\"\"\n    return formatdate(epoch_seconds, usegmt=True)\n\n\ndef parse_http_date(date):\n    \"\"\"\n    Parse a date format as specified by HTTP RFC7231 section 7.1.1.1.\n\n    The three formats allowed by the RFC are accepted, even if only the first\n    one is still in widespread use.\n\n    Return an integer expressed in seconds since the epoch, in UTC.\n    \"\"\"\n    # email.utils.parsedate() does the job for RFC1123 dates; unfortunately\n    # RFC7231 makes it mandatory to support RFC850 dates too. So we roll\n    # our own RFC-compliant parsing.\n    for regex in RFC1123_DATE, RFC850_DATE, ASCTIME_DATE:\n        m = regex.match(date)\n        if m is not None:\n            break\n    else:\n        raise ValueError(\"%r is not in a valid HTTP date format\" % date)\n    try:\n        year = int(m.group('year'))\n        if year < 100:\n            if year < 70:\n                year += 2000\n            else:\n                year += 1900\n        month = MONTHS.index(m.group('mon').lower()) + 1\n        day = int(m.group('day'))\n        hour = int(m.group('hour'))\n        min = int(m.group('min'))\n        sec = int(m.group('sec'))\n        result = datetime.datetime(year, month, day, hour, min, sec)\n        return calendar.timegm(result.utctimetuple())\n    except Exception as exc:\n        raise ValueError(\"%r is not a valid date\" % date) from exc\n\n\ndef parse_http_date_safe(date):\n    \"\"\"\n    Same as parse_http_date, but return None if the input is invalid.\n    \"\"\"\n    try:\n        return parse_http_date(date)\n    except Exception:\n        pass\n\n\n# Base 36 functions: useful for generating compact URLs\n\n",
+        "returncode": 0,
+        "timestamp": 1786007708.4097512,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_861b040d681f754a7ff3ec808d79f71c",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && grep -rn \\\"parse_http_date\\\" tests/ | head -50\"}",
+            "name": "bash"
+          },
+          "id": "call_a4402753bdfb5f04382879a88c38b764",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "We need to change the two-digit year logic to compare against current year: interpret a timestamp that appears more than 50 years in the future as the most recent year in the past with same last two digits. This is like Python's `_strptime` logic or the standard two-digit year handling: \n```\nnow = datetime.datetime.now().year\nif year < 100:\n    now_century = now // 100 * 100  # e.g. 2000\n    now_century_year = now % 100  # e.g. 20\n    if year > now_century_year + 50:\n        year += now_century - 100\n    else:\n        year += now_century\n```\nActually the RFC quote: \"interpret a timestamp that appears to be more than 50 years in the future as representing the most recent year in the past that had the same last two digits.\"\n\nLet me implement using current year. Let's look at existing tests to ensure expected behavior.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && grep -rn \"parse_http_date\" tests/ | head -50",
+            "tool_call_id": "call_a4402753bdfb5f04382879a88c38b764"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-2021",
+          "created": 1786007735,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && grep -rn \\\"parse_http_date\\\" tests/ | head -50\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_a4402753bdfb5f04382879a88c38b764",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "We need to change the two-digit year logic to compare against current year: interpret a timestamp that appears more than 50 years in the future as the most recent year in the past with same last two digits. This is like Python's `_strptime` logic or the standard two-digit year handling: \n```\nnow = datetime.datetime.now().year\nif year < 100:\n    now_century = now // 100 * 100  # e.g. 2000\n    now_century_year = now % 100  # e.g. 20\n    if year > now_century_year + 50:\n        year += now_century - 100\n    else:\n        year += now_century\n```\nActually the RFC quote: \"interpret a timestamp that appears to be more than 50 years in the future as representing the most recent year in the past that had the same last two digits.\"\n\nLet me implement using current year. Let's look at existing tests to ensure expected behavior.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 273,
+            "prompt_tokens": 2540,
+            "total_tokens": 2813,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 479,
+              "cached_tokens": 2061
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 791.4,
+            "prefill_tokens": 479,
+            "prefill_cached_tokens": 2061,
+            "prefill_tok_s": 620.1,
+            "decode_tok_s": 11.5,
+            "tok_per_step": 1.0
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786007735.6935463
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\ntests/utils_tests/test_http.py:9:    is_safe_url, is_same_domain, parse_etags, parse_http_date, quote_etag,\ntests/utils_tests/test_http.py:316:        parsed = parse_http_date('Sun, 06 Nov 1994 08:49:37 GMT')\ntests/utils_tests/test_http.py:320:        parsed = parse_http_date('Sunday, 06-Nov-94 08:49:37 GMT')\ntests/utils_tests/test_http.py:324:        parsed = parse_http_date('Sun Nov  6 08:49:37 1994')\ntests/utils_tests/test_http.py:328:        parsed = parse_http_date('Sun Nov  6 08:49:37 0037')\n</output>",
+      "extra": {
+        "raw_output": "tests/utils_tests/test_http.py:9:    is_safe_url, is_same_domain, parse_etags, parse_http_date, quote_etag,\ntests/utils_tests/test_http.py:316:        parsed = parse_http_date('Sun, 06 Nov 1994 08:49:37 GMT')\ntests/utils_tests/test_http.py:320:        parsed = parse_http_date('Sunday, 06-Nov-94 08:49:37 GMT')\ntests/utils_tests/test_http.py:324:        parsed = parse_http_date('Sun Nov  6 08:49:37 1994')\ntests/utils_tests/test_http.py:328:        parsed = parse_http_date('Sun Nov  6 08:49:37 0037')\n",
+        "returncode": 0,
+        "timestamp": 1786007736.2122126,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_a4402753bdfb5f04382879a88c38b764",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && sed -n '310,330p' tests/utils_tests/test_http.py\"}",
+            "name": "bash"
+          },
+          "id": "call_82a45ef85c92f7686626070eea499a9a",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && sed -n '310,330p' tests/utils_tests/test_http.py",
+            "tool_call_id": "call_82a45ef85c92f7686626070eea499a9a"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-2023",
+          "created": 1786007742,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && sed -n '310,330p' tests/utils_tests/test_http.py\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_82a45ef85c92f7686626070eea499a9a",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 64,
+            "prompt_tokens": 3011,
+            "total_tokens": 3075,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 199,
+              "cached_tokens": 2812
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 481.8,
+            "prefill_tokens": 199,
+            "prefill_cached_tokens": 2812,
+            "prefill_tok_s": 439.8,
+            "decode_tok_s": 9.7,
+            "tok_per_step": 1.02
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786007743.185025
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\nclass HttpDateProcessingTests(unittest.TestCase):\n    def test_http_date(self):\n        t = 1167616461.0\n        self.assertEqual(http_date(t), 'Mon, 01 Jan 2007 01:54:21 GMT')\n\n    def test_parsing_rfc1123(self):\n        parsed = parse_http_date('Sun, 06 Nov 1994 08:49:37 GMT')\n        self.assertEqual(datetime.utcfromtimestamp(parsed), datetime(1994, 11, 6, 8, 49, 37))\n\n    def test_parsing_rfc850(self):\n        parsed = parse_http_date('Sunday, 06-Nov-94 08:49:37 GMT')\n        self.assertEqual(datetime.utcfromtimestamp(parsed), datetime(1994, 11, 6, 8, 49, 37))\n\n    def test_parsing_asctime(self):\n        parsed = parse_http_date('Sun Nov  6 08:49:37 1994')\n        self.assertEqual(datetime.utcfromtimestamp(parsed), datetime(1994, 11, 6, 8, 49, 37))\n\n    def test_parsing_year_less_than_70(self):\n        parsed = parse_http_date('Sun Nov  6 08:49:37 0037')\n        self.assertEqual(datetime.utcfromtimestamp(parsed), datetime(2037, 11, 6, 8, 49, 37))\n\n</output>",
+      "extra": {
+        "raw_output": "class HttpDateProcessingTests(unittest.TestCase):\n    def test_http_date(self):\n        t = 1167616461.0\n        self.assertEqual(http_date(t), 'Mon, 01 Jan 2007 01:54:21 GMT')\n\n    def test_parsing_rfc1123(self):\n        parsed = parse_http_date('Sun, 06 Nov 1994 08:49:37 GMT')\n        self.assertEqual(datetime.utcfromtimestamp(parsed), datetime(1994, 11, 6, 8, 49, 37))\n\n    def test_parsing_rfc850(self):\n        parsed = parse_http_date('Sunday, 06-Nov-94 08:49:37 GMT')\n        self.assertEqual(datetime.utcfromtimestamp(parsed), datetime(1994, 11, 6, 8, 49, 37))\n\n    def test_parsing_asctime(self):\n        parsed = parse_http_date('Sun Nov  6 08:49:37 1994')\n        self.assertEqual(datetime.utcfromtimestamp(parsed), datetime(1994, 11, 6, 8, 49, 37))\n\n    def test_parsing_year_less_than_70(self):\n        parsed = parse_http_date('Sun Nov  6 08:49:37 0037')\n        self.assertEqual(datetime.utcfromtimestamp(parsed), datetime(2037, 11, 6, 8, 49, 37))\n\n",
+        "returncode": 0,
+        "timestamp": 1786007743.802683,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_82a45ef85c92f7686626070eea499a9a",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"date +%Y\"}",
+            "name": "bash"
+          },
+          "id": "call_bbb3b3303054f1c4d8ee3e72deb55f3e",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "Existing test expects 0037 -> 2037 (current logic hardcoded). But the new logic should compare to current year. Hmm, the test file is in tests, which we shouldn't modify. But maybe this test will fail after our change. However the PR says fix incorrect logic. Let's think: with current year ~2024 (the environment date), year 37 (0037) - current year's two-digit is 24. 37 > 24+50? 24+50=74, so 37 not >74, so year += 2000 -> 2037. That matches test. Good. For 94: 94 > 24+50? 74, yes, so year += 1900 -> 1994. Good.\n\nBut the test is fixed in time; current year matters. Since tests run with system date. The environment date might be 2024. Actually let's check date.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "date +%Y",
+            "tool_call_id": "call_bbb3b3303054f1c4d8ee3e72deb55f3e"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-2025",
+          "created": 1786007764,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"date +%Y\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_bbb3b3303054f1c4d8ee3e72deb55f3e",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "Existing test expects 0037 -> 2037 (current logic hardcoded). But the new logic should compare to current year. Hmm, the test file is in tests, which we shouldn't modify. But maybe this test will fail after our change. However the PR says fix incorrect logic. Let's think: with current year ~2024 (the environment date), year 37 (0037) - current year's two-digit is 24. 37 > 24+50? 24+50=74, so 37 not >74, so year += 2000 -> 2037. That matches test. Good. For 94: 94 > 24+50? 74, yes, so year += 1900 -> 1994. Good.\n\nBut the test is fixed in time; current year matters. Since tests run with system date. The environment date might be 2024. Actually let's check date.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 242,
+            "prompt_tokens": 3432,
+            "total_tokens": 3674,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 358,
+              "cached_tokens": 3074
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 1369.8,
+            "prefill_tokens": 358,
+            "prefill_cached_tokens": 3074,
+            "prefill_tok_s": 271.6,
+            "decode_tok_s": 12.2,
+            "tok_per_step": 1.0
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786007764.891265
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n2026\n</output>",
+      "extra": {
+        "raw_output": "2026\n",
+        "returncode": 0,
+        "timestamp": 1786007765.6331801,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_bbb3b3303054f1c4d8ee3e72deb55f3e",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && sed -n '1,40p' django/utils/http.py\"}",
+            "name": "bash"
+          },
+          "id": "call_fa3a25c910b843138e5ac89110ce4d37",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "Current year 2026. So two-digit current = 26. test 0037 -> 37 > 26+50=76? no -> 2037. Good. 94 -> 94 > 76 yes -> 1994. Good.\n\nNow implement logic. Let's write code.\n\nThe RFC quote: \"interpret a timestamp that appears to be more than 50 years in the future as representing the most recent year in the past that had the same last two digits.\"\n\nStandard algorithm (like Python's _strptime for two-digit years):\n```\nnow_year = datetime.datetime.now().year\nif year < 100:\n    now_century = now_year // 100 * 100\n    now_century_year = now_year % 100\n    if year > now_century_year + 50:\n        year += now_century - 100\n    else:\n        year += now_century\n```\n\nLet me verify with examples:\n- now 2026, yy 94: now_century=2000, now_century_year=26. 94 > 76 yes -> year += 2000-100 = 1900 -> 1994. correct.\n- yy 37: 37 > 76? no -> 2037. correct.\n- yy 20 (current two-digit): 20 > 76? no -> 2020. correct.\n- yy 99: 99 > 76 yes -> 1999. correct.\n- yy 00: 0 > 76? no -> 2000. correct (year 00 represents 2000, 0 years in future).\n- yy 80: 80 > 76 yes -> 1980. correct (80 is more than 50 years in future from 2026? 2080 is 54 years in future, so interpret as 1980).\n- yy 76: 76 > 76? no -> 2076. 76 years in future is 50 years? \"more than 50 years in the future\" -> exactly 50 is not more, so 2076. correct.\n\nLet me implement.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && sed -n '1,40p' django/utils/http.py",
+            "tool_call_id": "call_fa3a25c910b843138e5ac89110ce4d37"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-2032",
+          "created": 1786007813,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && sed -n '1,40p' django/utils/http.py\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_fa3a25c910b843138e5ac89110ce4d37",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "Current year 2026. So two-digit current = 26. test 0037 -> 37 > 26+50=76? no -> 2037. Good. 94 -> 94 > 76 yes -> 1994. Good.\n\nNow implement logic. Let's write code.\n\nThe RFC quote: \"interpret a timestamp that appears to be more than 50 years in the future as representing the most recent year in the past that had the same last two digits.\"\n\nStandard algorithm (like Python's _strptime for two-digit years):\n```\nnow_year = datetime.datetime.now().year\nif year < 100:\n    now_century = now_year // 100 * 100\n    now_century_year = now_year % 100\n    if year > now_century_year + 50:\n        year += now_century - 100\n    else:\n        year += now_century\n```\n\nLet me verify with examples:\n- now 2026, yy 94: now_century=2000, now_century_year=26. 94 > 76 yes -> year += 2000-100 = 1900 -> 1994. correct.\n- yy 37: 37 > 76? no -> 2037. correct.\n- yy 20 (current two-digit): 20 > 76? no -> 2020. correct.\n- yy 99: 99 > 76 yes -> 1999. correct.\n- yy 00: 0 > 76? no -> 2000. correct (year 00 represents 2000, 0 years in future).\n- yy 80: 80 > 76 yes -> 1980. correct (80 is more than 50 years in future from 2026? 2080 is 54 years in future, so interpret as 1980).\n- yy 76: 76 > 76? no -> 2076. 76 years in future is 50 years? \"more than 50 years in the future\" -> exactly 50 is not more, so 2076. correct.\n\nLet me implement.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 509,
+            "prompt_tokens": 3702,
+            "total_tokens": 4211,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 29,
+              "cached_tokens": 3673
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 336.1,
+            "prefill_tokens": 29,
+            "prefill_cached_tokens": 3673,
+            "prefill_tok_s": 87.3,
+            "decode_tok_s": 10.7,
+            "tok_per_step": 1.0
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786007813.5641744
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\nimport base64\nimport calendar\nimport datetime\nimport re\nimport unicodedata\nimport warnings\nfrom binascii import Error as BinasciiError\nfrom email.utils import formatdate\nfrom urllib.parse import (\n    ParseResult, SplitResult, _coerce_args, _splitnetloc, _splitparams, quote,\n    quote_plus, scheme_chars, unquote, unquote_plus,\n    urlencode as original_urlencode, uses_params,\n)\n\nfrom django.core.exceptions import TooManyFieldsSent\nfrom django.utils.datastructures import MultiValueDict\nfrom django.utils.deprecation import RemovedInDjango40Warning\nfrom django.utils.functional import keep_lazy_text\n\n# based on RFC 7232, Appendix C\nETAG_MATCH = re.compile(r'''\n    \\A(      # start of string and capture group\n    (?:W/)?  # optional weak indicator\n    \"        # opening quote\n    [^\"]*    # any sequence of non-quote characters\n    \"        # end quote\n    )\\Z      # end of string and capture group\n''', re.X)\n\nMONTHS = 'jan feb mar apr may jun jul aug sep oct nov dec'.split()\n__D = r'(?P<day>\\d{2})'\n__D2 = r'(?P<day>[ \\d]\\d)'\n__M = r'(?P<mon>\\w{3})'\n__Y = r'(?P<year>\\d{4})'\n__Y2 = r'(?P<year>\\d{2})'\n__T = r'(?P<hour>\\d{2}):(?P<min>\\d{2}):(?P<sec>\\d{2})'\nRFC1123_DATE = re.compile(r'^\\w{3}, %s %s %s %s GMT$' % (__D, __M, __Y, __T))\nRFC850_DATE = re.compile(r'^\\w{6,9}, %s-%s-%s %s GMT$' % (__D, __M, __Y2, __T))\nASCTIME_DATE = re.compile(r'^\\w{3} %s %s %s %s$' % (__M, __D2, __T, __Y))\n\n</output>",
+      "extra": {
+        "raw_output": "import base64\nimport calendar\nimport datetime\nimport re\nimport unicodedata\nimport warnings\nfrom binascii import Error as BinasciiError\nfrom email.utils import formatdate\nfrom urllib.parse import (\n    ParseResult, SplitResult, _coerce_args, _splitnetloc, _splitparams, quote,\n    quote_plus, scheme_chars, unquote, unquote_plus,\n    urlencode as original_urlencode, uses_params,\n)\n\nfrom django.core.exceptions import TooManyFieldsSent\nfrom django.utils.datastructures import MultiValueDict\nfrom django.utils.deprecation import RemovedInDjango40Warning\nfrom django.utils.functional import keep_lazy_text\n\n# based on RFC 7232, Appendix C\nETAG_MATCH = re.compile(r'''\n    \\A(      # start of string and capture group\n    (?:W/)?  # optional weak indicator\n    \"        # opening quote\n    [^\"]*    # any sequence of non-quote characters\n    \"        # end quote\n    )\\Z      # end of string and capture group\n''', re.X)\n\nMONTHS = 'jan feb mar apr may jun jul aug sep oct nov dec'.split()\n__D = r'(?P<day>\\d{2})'\n__D2 = r'(?P<day>[ \\d]\\d)'\n__M = r'(?P<mon>\\w{3})'\n__Y = r'(?P<year>\\d{4})'\n__Y2 = r'(?P<year>\\d{2})'\n__T = r'(?P<hour>\\d{2}):(?P<min>\\d{2}):(?P<sec>\\d{2})'\nRFC1123_DATE = re.compile(r'^\\w{3}, %s %s %s %s GMT$' % (__D, __M, __Y, __T))\nRFC850_DATE = re.compile(r'^\\w{6,9}, %s-%s-%s %s GMT$' % (__D, __M, __Y2, __T))\nASCTIME_DATE = re.compile(r'^\\w{3} %s %s %s %s$' % (__M, __D2, __T, __Y))\n\n",
+        "returncode": 0,
+        "timestamp": 1786007814.1386237,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_fa3a25c910b843138e5ac89110ce4d37",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && python - <<'EOF'\\nimport datetime\\nnow_year = datetime.datetime.now().year\\nprint(now_year)\\nEOF\"}",
+            "name": "bash"
+          },
+          "id": "call_80de4d9025c0466ae7f78a20ebc28b92",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && python - <<'EOF'\nimport datetime\nnow_year = datetime.datetime.now().year\nprint(now_year)\nEOF",
+            "tool_call_id": "call_80de4d9025c0466ae7f78a20ebc28b92"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-2034",
+          "created": 1786007822,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && python - <<'EOF'\\nimport datetime\\nnow_year = datetime.datetime.now().year\\nprint(now_year)\\nEOF\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_80de4d9025c0466ae7f78a20ebc28b92",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 71,
+            "prompt_tokens": 4727,
+            "total_tokens": 4798,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 517,
+              "cached_tokens": 4210
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 969.6,
+            "prefill_tokens": 517,
+            "prefill_cached_tokens": 4210,
+            "prefill_tok_s": 550.1,
+            "decode_tok_s": 8.8,
+            "tok_per_step": 1.01
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786007823.171354
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n2026\n</output>",
+      "extra": {
+        "raw_output": "2026\n",
+        "returncode": 0,
+        "timestamp": 1786007823.7998593,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_80de4d9025c0466ae7f78a20ebc28b92",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && python - <<'EOF'\\nimport re\\npath = 'django/utils/http.py'\\ncontent = open(path).read()\\nold = \\\"\\\"\\\"        year = int(m.group('year'))\\n        if year < 100:\\n            if year < 70:\\n                year += 2000\\n            else:\\n                year += 1900\\n\\\"\\\"\\\"\\nnew = \\\"\\\"\\\"        year = int(m.group('year'))\\n        if year < 100:\\n            now_year = datetime.datetime.now().year\\n            now_century = now_year // 100 * 100\\n            now_century_year = now_year % 100\\n            if year > now_century_year + 50:\\n                year += now_century - 100\\n            else:\\n                year += now_century\\n\\\"\\\"\\\"\\nassert old in content\\ncontent = content.replace(old, new)\\nopen(path, 'w').write(content)\\nprint('done')\\nEOF\"}",
+            "name": "bash"
+          },
+          "id": "call_dbaff4bc7ad06be9dd2cdd724613a8b8",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "Let me make the edit. I'll use python to do precise replacement.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && python - <<'EOF'\nimport re\npath = 'django/utils/http.py'\ncontent = open(path).read()\nold = \"\"\"        year = int(m.group('year'))\n        if year < 100:\n            if year < 70:\n                year += 2000\n            else:\n                year += 1900\n\"\"\"\nnew = \"\"\"        year = int(m.group('year'))\n        if year < 100:\n            now_year = datetime.datetime.now().year\n            now_century = now_year // 100 * 100\n            now_century_year = now_year % 100\n            if year > now_century_year + 50:\n                year += now_century - 100\n            else:\n                year += now_century\n\"\"\"\nassert old in content\ncontent = content.replace(old, new)\nopen(path, 'w').write(content)\nprint('done')\nEOF",
+            "tool_call_id": "call_dbaff4bc7ad06be9dd2cdd724613a8b8"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-2035",
+          "created": 1786007844,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && python - <<'EOF'\\nimport re\\npath = 'django/utils/http.py'\\ncontent = open(path).read()\\nold = \\\"\\\"\\\"        year = int(m.group('year'))\\n        if year < 100:\\n            if year < 70:\\n                year += 2000\\n            else:\\n                year += 1900\\n\\\"\\\"\\\"\\nnew = \\\"\\\"\\\"        year = int(m.group('year'))\\n        if year < 100:\\n            now_year = datetime.datetime.now().year\\n            now_century = now_year // 100 * 100\\n            now_century_year = now_year % 100\\n            if year > now_century_year + 50:\\n                year += now_century - 100\\n            else:\\n                year += now_century\\n\\\"\\\"\\\"\\nassert old in content\\ncontent = content.replace(old, new)\\nopen(path, 'w').write(content)\\nprint('done')\\nEOF\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_dbaff4bc7ad06be9dd2cdd724613a8b8",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "Let me make the edit. I'll use python to do precise replacement.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 251,
+            "prompt_tokens": 4826,
+            "total_tokens": 5077,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 29,
+              "cached_tokens": 4797
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 383.6,
+            "prefill_tokens": 29,
+            "prefill_cached_tokens": 4797,
+            "prefill_tok_s": 87.2,
+            "decode_tok_s": 12.3,
+            "tok_per_step": 1.0
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786007844.6032867
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\ndone\n</output>",
+      "extra": {
+        "raw_output": "done\n",
+        "returncode": 0,
+        "timestamp": 1786007845.3151114,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_dbaff4bc7ad06be9dd2cdd724613a8b8",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && python -m pytest tests/utils_tests/test_http.py -q 2>&1 | tail -30\"}",
+            "name": "bash"
+          },
+          "id": "call_7200f01a7f2b68d55b21df62756cfecf",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "Now run the existing tests to verify.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && python -m pytest tests/utils_tests/test_http.py -q 2>&1 | tail -30",
+            "tool_call_id": "call_7200f01a7f2b68d55b21df62756cfecf"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-2038",
+          "created": 1786007852,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && python -m pytest tests/utils_tests/test_http.py -q 2>&1 | tail -30\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_7200f01a7f2b68d55b21df62756cfecf",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "Now run the existing tests to verify.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 77,
+            "prompt_tokens": 5104,
+            "total_tokens": 5181,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 28,
+              "cached_tokens": 5076
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 313.7,
+            "prefill_tokens": 28,
+            "prefill_cached_tokens": 5076,
+            "prefill_tok_s": 92.3,
+            "decode_tok_s": 10.5,
+            "tok_per_step": 1.01
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786007852.9421065
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n/opt/miniconda3/envs/testbed/bin/python: No module named pytest\n</output>",
+      "extra": {
+        "raw_output": "/opt/miniconda3/envs/testbed/bin/python: No module named pytest\n",
+        "returncode": 0,
+        "timestamp": 1786007853.556537,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_7200f01a7f2b68d55b21df62756cfecf",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && python -m django --version 2>/dev/null; python - <<'EOF'\\nfrom django.utils.http import parse_http_date\\nimport datetime\\ncases = [\\n    ('Sunday, 06-Nov-94 08:49:37 GMT', 1994),\\n    ('Sunday, 06-Nov-37 08:49:37 GMT', 2037),\\n    ('Sunday, 06-Nov-20 08:49:37 GMT', 2020),\\n    ('Sunday, 06-Nov-99 08:49:37 GMT', 1999),\\n    ('Sunday, 06-Nov-00 08:49:37 GMT', 2000),\\n    ('Sunday, 06-Nov-80 08:49:37 GMT', 1980),\\n    ('Sunday, 06-Nov-76 08:49:37 GMT', 2076),\\n]\\nfor date_str, expect in cases:\\n    parsed = parse_http_date(date_str)\\n    got = datetime.datetime.utcfromtimestamp(parsed).year\\n    print(date_str, got, expect, 'OK' if got == expect else 'FAIL')\\nEOF\"}",
+            "name": "bash"
+          },
+          "id": "call_b55dde31cf7ac3ebd2dc7c729d25a68e",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && python -m django --version 2>/dev/null; python - <<'EOF'\nfrom django.utils.http import parse_http_date\nimport datetime\ncases = [\n    ('Sunday, 06-Nov-94 08:49:37 GMT', 1994),\n    ('Sunday, 06-Nov-37 08:49:37 GMT', 2037),\n    ('Sunday, 06-Nov-20 08:49:37 GMT', 2020),\n    ('Sunday, 06-Nov-99 08:49:37 GMT', 1999),\n    ('Sunday, 06-Nov-00 08:49:37 GMT', 2000),\n    ('Sunday, 06-Nov-80 08:49:37 GMT', 1980),\n    ('Sunday, 06-Nov-76 08:49:37 GMT', 2076),\n]\nfor date_str, expect in cases:\n    parsed = parse_http_date(date_str)\n    got = datetime.datetime.utcfromtimestamp(parsed).year\n    print(date_str, got, expect, 'OK' if got == expect else 'FAIL')\nEOF",
+            "tool_call_id": "call_b55dde31cf7ac3ebd2dc7c729d25a68e"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-2042",
+          "created": 1786007877,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && python -m django --version 2>/dev/null; python - <<'EOF'\\nfrom django.utils.http import parse_http_date\\nimport datetime\\ncases = [\\n    ('Sunday, 06-Nov-94 08:49:37 GMT', 1994),\\n    ('Sunday, 06-Nov-37 08:49:37 GMT', 2037),\\n    ('Sunday, 06-Nov-20 08:49:37 GMT', 2020),\\n    ('Sunday, 06-Nov-99 08:49:37 GMT', 1999),\\n    ('Sunday, 06-Nov-00 08:49:37 GMT', 2000),\\n    ('Sunday, 06-Nov-80 08:49:37 GMT', 1980),\\n    ('Sunday, 06-Nov-76 08:49:37 GMT', 2076),\\n]\\nfor date_str, expect in cases:\\n    parsed = parse_http_date(date_str)\\n    got = datetime.datetime.utcfromtimestamp(parsed).year\\n    print(date_str, got, expect, 'OK' if got == expect else 'FAIL')\\nEOF\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_b55dde31cf7ac3ebd2dc7c729d25a68e",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 284,
+            "prompt_tokens": 5224,
+            "total_tokens": 5508,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 44,
+              "cached_tokens": 5180
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 615.2,
+            "prefill_tokens": 44,
+            "prefill_cached_tokens": 5180,
+            "prefill_tok_s": 79.1,
+            "decode_tok_s": 11.7,
+            "tok_per_step": 1.0
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786007878.393924
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\n3.1\nSunday, 06-Nov-94 08:49:37 GMT 1994 1994 OK\nSunday, 06-Nov-37 08:49:37 GMT 2037 2037 OK\nSunday, 06-Nov-20 08:49:37 GMT 2020 2020 OK\nSunday, 06-Nov-99 08:49:37 GMT 1999 1999 OK\nSunday, 06-Nov-00 08:49:37 GMT 2000 2000 OK\nSunday, 06-Nov-80 08:49:37 GMT 1980 1980 OK\nSunday, 06-Nov-76 08:49:37 GMT 2076 2076 OK\n</output>",
+      "extra": {
+        "raw_output": "3.1\nSunday, 06-Nov-94 08:49:37 GMT 1994 1994 OK\nSunday, 06-Nov-37 08:49:37 GMT 2037 2037 OK\nSunday, 06-Nov-20 08:49:37 GMT 2020 2020 OK\nSunday, 06-Nov-99 08:49:37 GMT 1999 1999 OK\nSunday, 06-Nov-00 08:49:37 GMT 2000 2000 OK\nSunday, 06-Nov-80 08:49:37 GMT 1980 1980 OK\nSunday, 06-Nov-76 08:49:37 GMT 2076 2076 OK\n",
+        "returncode": 0,
+        "timestamp": 1786007879.4016445,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_b55dde31cf7ac3ebd2dc7c729d25a68e",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && sed -n '158,200p' django/utils/http.py\"}",
+            "name": "bash"
+          },
+          "id": "call_4055678c84edd0a2e1c8308cb3c64d0e",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "The fix works. Let me view the final code and create the patch.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && sed -n '158,200p' django/utils/http.py",
+            "tool_call_id": "call_4055678c84edd0a2e1c8308cb3c64d0e"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-2044",
+          "created": 1786007886,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && sed -n '158,200p' django/utils/http.py\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_4055678c84edd0a2e1c8308cb3c64d0e",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "The fix works. Let me view the final code and create the patch.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 75,
+            "prompt_tokens": 5691,
+            "total_tokens": 5766,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 184,
+              "cached_tokens": 5507
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 443.9,
+            "prefill_tokens": 184,
+            "prefill_cached_tokens": 5507,
+            "prefill_tok_s": 437.4,
+            "decode_tok_s": 11.1,
+            "tok_per_step": 1.01
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786007886.545274
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\ndef parse_http_date(date):\n    \"\"\"\n    Parse a date format as specified by HTTP RFC7231 section 7.1.1.1.\n\n    The three formats allowed by the RFC are accepted, even if only the first\n    one is still in widespread use.\n\n    Return an integer expressed in seconds since the epoch, in UTC.\n    \"\"\"\n    # email.utils.parsedate() does the job for RFC1123 dates; unfortunately\n    # RFC7231 makes it mandatory to support RFC850 dates too. So we roll\n    # our own RFC-compliant parsing.\n    for regex in RFC1123_DATE, RFC850_DATE, ASCTIME_DATE:\n        m = regex.match(date)\n        if m is not None:\n            break\n    else:\n        raise ValueError(\"%r is not in a valid HTTP date format\" % date)\n    try:\n        year = int(m.group('year'))\n        if year < 100:\n            now_year = datetime.datetime.now().year\n            now_century = now_year // 100 * 100\n            now_century_year = now_year % 100\n            if year > now_century_year + 50:\n                year += now_century - 100\n            else:\n                year += now_century\n        month = MONTHS.index(m.group('mon').lower()) + 1\n        day = int(m.group('day'))\n        hour = int(m.group('hour'))\n        min = int(m.group('min'))\n        sec = int(m.group('sec'))\n        result = datetime.datetime(year, month, day, hour, min, sec)\n        return calendar.timegm(result.utctimetuple())\n    except Exception as exc:\n        raise ValueError(\"%r is not a valid date\" % date) from exc\n\n\ndef parse_http_date_safe(date):\n    \"\"\"\n    Same as parse_http_date, but return None if the input is invalid.\n    \"\"\"\n</output>",
+      "extra": {
+        "raw_output": "def parse_http_date(date):\n    \"\"\"\n    Parse a date format as specified by HTTP RFC7231 section 7.1.1.1.\n\n    The three formats allowed by the RFC are accepted, even if only the first\n    one is still in widespread use.\n\n    Return an integer expressed in seconds since the epoch, in UTC.\n    \"\"\"\n    # email.utils.parsedate() does the job for RFC1123 dates; unfortunately\n    # RFC7231 makes it mandatory to support RFC850 dates too. So we roll\n    # our own RFC-compliant parsing.\n    for regex in RFC1123_DATE, RFC850_DATE, ASCTIME_DATE:\n        m = regex.match(date)\n        if m is not None:\n            break\n    else:\n        raise ValueError(\"%r is not in a valid HTTP date format\" % date)\n    try:\n        year = int(m.group('year'))\n        if year < 100:\n            now_year = datetime.datetime.now().year\n            now_century = now_year // 100 * 100\n            now_century_year = now_year % 100\n            if year > now_century_year + 50:\n                year += now_century - 100\n            else:\n                year += now_century\n        month = MONTHS.index(m.group('mon').lower()) + 1\n        day = int(m.group('day'))\n        hour = int(m.group('hour'))\n        min = int(m.group('min'))\n        sec = int(m.group('sec'))\n        result = datetime.datetime(year, month, day, hour, min, sec)\n        return calendar.timegm(result.utctimetuple())\n    except Exception as exc:\n        raise ValueError(\"%r is not a valid date\" % date) from exc\n\n\ndef parse_http_date_safe(date):\n    \"\"\"\n    Same as parse_http_date, but return None if the input is invalid.\n    \"\"\"\n",
+        "returncode": 0,
+        "timestamp": 1786007887.090191,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_4055678c84edd0a2e1c8308cb3c64d0e",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && git diff -- django/utils/http.py > patch.txt && cat patch.txt\"}",
+            "name": "bash"
+          },
+          "id": "call_0fa3dbc8f798b9409ed88e040376eed6",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && git diff -- django/utils/http.py > patch.txt && cat patch.txt",
+            "tool_call_id": "call_0fa3dbc8f798b9409ed88e040376eed6"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-2046",
+          "created": 1786007893,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && git diff -- django/utils/http.py > patch.txt && cat patch.txt\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_0fa3dbc8f798b9409ed88e040376eed6",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 61,
+            "prompt_tokens": 6195,
+            "total_tokens": 6256,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 430,
+              "cached_tokens": 5765
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 755.3,
+            "prefill_tokens": 430,
+            "prefill_cached_tokens": 5765,
+            "prefill_tok_s": 588.9,
+            "decode_tok_s": 10.2,
+            "tok_per_step": 1.02
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786007893.7514715
+      }
+    },
+    {
+      "content": "<returncode>0</returncode>\n<output>\ndiff --git a/django/utils/http.py b/django/utils/http.py\nindex 572cfb4347..4e53ebcf9b 100644\n--- a/django/utils/http.py\n+++ b/django/utils/http.py\n@@ -176,10 +176,13 @@ def parse_http_date(date):\n     try:\n         year = int(m.group('year'))\n         if year < 100:\n-            if year < 70:\n-                year += 2000\n+            now_year = datetime.datetime.now().year\n+            now_century = now_year // 100 * 100\n+            now_century_year = now_year % 100\n+            if year > now_century_year + 50:\n+                year += now_century - 100\n             else:\n-                year += 1900\n+                year += now_century\n         month = MONTHS.index(m.group('mon').lower()) + 1\n         day = int(m.group('day'))\n         hour = int(m.group('hour'))\n</output>",
+      "extra": {
+        "raw_output": "diff --git a/django/utils/http.py b/django/utils/http.py\nindex 572cfb4347..4e53ebcf9b 100644\n--- a/django/utils/http.py\n+++ b/django/utils/http.py\n@@ -176,10 +176,13 @@ def parse_http_date(date):\n     try:\n         year = int(m.group('year'))\n         if year < 100:\n-            if year < 70:\n-                year += 2000\n+            now_year = datetime.datetime.now().year\n+            now_century = now_year // 100 * 100\n+            now_century_year = now_year % 100\n+            if year > now_century_year + 50:\n+                year += now_century - 100\n             else:\n-                year += 1900\n+                year += now_century\n         month = MONTHS.index(m.group('mon').lower()) + 1\n         day = int(m.group('day'))\n         hour = int(m.group('hour'))\n",
+        "returncode": 0,
+        "timestamp": 1786007894.3263419,
+        "exception_info": ""
+      },
+      "tool_call_id": "call_0fa3dbc8f798b9409ed88e040376eed6",
+      "role": "tool"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{\"command\":\"cd /testbed && echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT && cat patch.txt\"}",
+            "name": "bash"
+          },
+          "id": "call_aaa9bc3144cf0f19244f44e101ba7131",
+          "type": "function"
+        }
+      ],
+      "function_call": null,
+      "reasoning_content": "Patch looks good. Now submit with the exact command.",
+      "provider_specific_fields": {
+        "refusal": null
+      },
+      "extra": {
+        "actions": [
+          {
+            "command": "cd /testbed && echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT && cat patch.txt",
+            "tool_call_id": "call_aaa9bc3144cf0f19244f44e101ba7131"
+          }
+        ],
+        "response": {
+          "id": "chatcmpl-2049",
+          "created": 1786007902,
+          "model": "deepseek-v4-flash",
+          "object": "chat.completion",
+          "system_fingerprint": null,
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "content": "",
+                "role": "assistant",
+                "tool_calls": [
+                  {
+                    "function": {
+                      "arguments": "{\"command\":\"cd /testbed && echo COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT && cat patch.txt\"}",
+                      "name": "bash"
+                    },
+                    "id": "call_aaa9bc3144cf0f19244f44e101ba7131",
+                    "type": "function"
+                  }
+                ],
+                "function_call": null,
+                "reasoning_content": "Patch looks good. Now submit with the exact command.",
+                "provider_specific_fields": {
+                  "refusal": null
+                }
+              },
+              "provider_specific_fields": {}
+            }
+          ],
+          "usage": {
+            "completion_tokens": 77,
+            "prompt_tokens": 6508,
+            "total_tokens": 6585,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": 253,
+              "cached_tokens": 6255
+            }
+          },
+          "moderation": null,
+          "service_tier": null,
+          "timings": {
+            "ttft_ms": 564.9,
+            "prefill_tokens": 253,
+            "prefill_cached_tokens": 6255,
+            "prefill_tok_s": 474.0,
+            "decode_tok_s": 10.7,
+            "tok_per_step": 1.01
+          }
+        },
+        "cost": 0.0,
+        "timestamp": 1786007902.5142915
+      }
+    },
+    {
+      "role": "exit",
+      "content": "diff --git a/django/utils/http.py b/django/utils/http.py\nindex 572cfb4347..4e53ebcf9b 100644\n--- a/django/utils/http.py\n+++ b/django/utils/http.py\n@@ -176,10 +176,13 @@ def parse_http_date(date):\n     try:\n         year = int(m.group('year'))\n         if year < 100:\n-            if year < 70:\n-                year += 2000\n+            now_year = datetime.datetime.now().year\n+            now_century = now_year // 100 * 100\n+            now_century_year = now_year % 100\n+            if year > now_century_year + 50:\n+                year += now_century - 100\n             else:\n-                year += 1900\n+                year += now_century\n         month = MONTHS.index(m.group('mon').lower()) + 1\n         day = int(m.group('day'))\n         hour = int(m.group('hour'))\n",
+      "extra": {
+        "exit_status": "Submitted",
+        "submission": "diff --git a/django/utils/http.py b/django/utils/http.py\nindex 572cfb4347..4e53ebcf9b 100644\n--- a/django/utils/http.py\n+++ b/django/utils/http.py\n@@ -176,10 +176,13 @@ def parse_http_date(date):\n     try:\n         year = int(m.group('year'))\n         if year < 100:\n-            if year < 70:\n-                year += 2000\n+            now_year = datetime.datetime.now().year\n+            now_century = now_year // 100 * 100\n+            now_century_year = now_year % 100\n+            if year > now_century_year + 50:\n+                year += now_century - 100\n             else:\n-                year += 1900\n+                year += now_century\n         month = MONTHS.index(m.group('mon').lower()) + 1\n         day = int(m.group('day'))\n         hour = int(m.group('hour'))\n"
+      }
+    }
+  ],
+  "trajectory_format": "mini-swe-agent-1.1",
+  "instance_id": "django__django-11848"
+}
